@@ -5,11 +5,14 @@
 #include <juce_core/juce_core.h>
 #include <juce_graphics/juce_graphics.h>
 #include <juce_gui_basics/juce_gui_basics.h>
-
+#include "Constants.h"
 #include "LookAndFeel.h"
 #include "Timer.h"
+#include <regex>
 
 using namespace juce;
+
+extern Colour viewPortBackground;
 
 class MyDraggableComponent : public Component 
 {
@@ -43,6 +46,23 @@ public:
   void mouseExit (const MouseEvent&) override {
       repaint();
   }
+};
+
+class PopOver : public Component
+{
+public:
+  void paint(Graphics& g) override {
+    auto brightness = (viewPortBackground.getBrightness() == 0.0) ? viewPortBackground.getBrightness() + 0.2 :  viewPortBackground.getBrightness() - 0.2;
+    g.fillAll (viewPortBackground.withBrightness(brightness).withAlpha(0.9f));
+  } 
+};
+
+class RightViewPort : public Viewport
+{
+public:
+  void paint(Graphics& g) override {
+    g.fillAll (viewPortBackground);
+  } 
 };
 
 class MyDocumentWindow : public DocumentWindow
@@ -103,6 +123,7 @@ public:
   void static setTitleBarName(const String& name);
   void static processPreferencesDefaults(StringPairArray prefs);
   void static processPreferencesColors(StringPairArray prefs);
+  void static processPreferencesChordPro(StringPairArray prefs);
   void static removeColorKeywordFromName(bool remove);
   void static refreshUI();
   void static updateButtonLnF(std::string LnFname);
@@ -113,7 +134,14 @@ public:
     {
         resized();
     }
- 
+  void static chordProScrollWindow(double value);
+  void static chordProProcessText(std::string text);
+  void static chordProReadFile(int index);
+  void chordProReset();
+  void static chordProScrollToSongPart(std::string text);
+  void chordProDisplayGUI(bool display);
+  void chordProSetColors();
+
   static ExtensionWindow* extension;
   MyDraggableComponent draggableResizer;
   static bool zeroBasedNumbering;
@@ -126,42 +154,59 @@ public:
   SharedResourcePointer<minimalistSong> minimalistSongLnF;
   SharedResourcePointer<subButtonHighlightLookAndFeel> highlightLnF;
   SharedResourcePointer<blankButtonLookAndFeel> blankLnF;
+  SharedResourcePointer<chordPro> chordProLnF;
+  SharedResourcePointer<chordProTitle> chordProTitleLnF;
+  SharedResourcePointer<chordProSubTitle> chordProSubTitleLnF;
+  SharedResourcePointer<chordProComment> chordProCommentLnF;
+  SharedResourcePointer<chordProLabel> chordProLabelLnF;  
+  SharedResourcePointer<chordProTab> chordProTabLnF;
+  SharedResourcePointer<popOverLookAndFeel>popOverLnf;
+  SharedResourcePointer<popOverLabel>popOverLabelLnf;
 
  private:
   TooltipWindow tooltipWindow;
   std::unique_ptr<MyDocumentWindow> extensionWindow;
   Viewport viewport;
-  Viewport viewportRight;
+  RightViewPort viewportRight;
   Component container;
   Component containerRight;
+  Component chordProContainer;
+  PopOver fontButtonContainer;
   OwnedArray<TextButton> buttons;
   OwnedArray<TextButton> subButtons;
+  OwnedArray<Label> chordProLines;
   StringPairArray buttonColors;
+  StringPairArray chordProColors;
   ClockTimer clockTimer;
   RefreshTimer refreshTimer;
   bool displayRightPanel = false;
   bool displayWindowOnLoad = false;
+  bool chordProForCurrentSong = false;
   std::unique_ptr<int> switchImmediately;
   int prevButtonSelected = 0;
   std::unique_ptr<Label> label;
   std::unique_ptr<Label> highlight;
   std::unique_ptr<Label> header;
   std::unique_ptr<Label> clock;
+  std::unique_ptr<Label> fontPopOverLabel;
   std::unique_ptr<TextButton> btnClear;
   std::unique_ptr<TextButton> btnCurrent;
   std::unique_ptr<TextButton> btnPrev;
   std::unique_ptr<TextButton> btnNext;
   std::unique_ptr<TextButton> btnModeSwitch;
+  std::unique_ptr<TextButton> fontUp;
+  std::unique_ptr<TextButton> fontDown;
+  std::unique_ptr<TextButton> fontMono;
   std::unique_ptr<DynamicObject> preferences;
   std::unique_ptr<juce::NamedValueSet> myVar;
-  std::unique_ptr<ShapeButton> burgerButton;
   std::unique_ptr<ShapeButton> sidePanelOpenButton;
   std::unique_ptr<ShapeButton> sidePanelCloseButton;
   std::unique_ptr<ShapeButton> pinUnpinnedButton;
   std::unique_ptr<ShapeButton> pinPinnedButton;
-  std::unique_ptr<ShapeButton> refreshButton;
   std::unique_ptr<ShapeButton> fullscreenActivateButton;
   std::unique_ptr<ShapeButton> fullscreenDeactivateButton;
+  std::unique_ptr<ShapeButton> fontButton;
+  std::unique_ptr<ShapeButton> lightDarkModeButton;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ExtensionWindow)
 };

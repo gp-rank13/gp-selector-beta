@@ -4,10 +4,15 @@
 #include "ExtensionWindow.h"
 #include "LibMain.h"
 #include "IconPaths.h"
-#include "Constants.h"
 
 ExtensionWindow* ExtensionWindow::extension = nullptr;
-LibMain* lib = new LibMain(nullptr);     
+LibMain* lib = new LibMain(nullptr);   
+Colour chordProLyricColor = Colour::fromString(CP_DARK_LYRIC_COLOR);  
+Colour chordProChordColor = Colour::fromString(CP_DARK_CHORD_COLOR);
+bool chordProMonospaceFont = false;
+bool chordProDarkMode = true;
+Colour viewPortBackground = Colour::fromString(BACKGROUND_COLOR);
+float chordProFontSize = CP_DEFAULT_FONT_SIZE;
 
 ExtensionWindow::ExtensionWindow ()
 {
@@ -110,6 +115,26 @@ ExtensionWindow::ExtensionWindow ()
     addAndMakeVisible (fullscreenDeactivateButton.get());
     fullscreenDeactivateButton->setVisible(false);
 
+    Path p7;
+    p7.loadPathFromData (lightDarkModePathData, sizeof (lightDarkModePathData));
+    p7.applyTransform(juce::AffineTransform::verticalFlip(0));
+    lightDarkModeButton.reset (new ShapeButton ( "lightDarkModeButton", Colours::white, Colours::lightgrey, Colours::white ));
+    lightDarkModeButton->setShape (p7, true, true, false);
+    lightDarkModeButton->setTooltip("Light/dark mode");
+    lightDarkModeButton->addListener (this);
+    addAndMakeVisible (lightDarkModeButton.get());
+    lightDarkModeButton->setVisible(false);
+
+    Path p8;
+    p8.loadPathFromData (fontPathData, sizeof (fontPathData));
+    p8.applyTransform(juce::AffineTransform::verticalFlip(0));
+    fontButton.reset (new ShapeButton ( "fontButton", Colours::white, Colours::lightgrey, Colours::white ));
+    fontButton->setShape (p8, true, true, false);
+    fontButton->setTooltip("Show/hide font settings");
+    fontButton->addListener (this);
+    addAndMakeVisible (fontButton.get());
+    fontButton->setVisible(false);
+
     btnCurrent.reset (new TextButton ("btnCurrent"));
     btnCurrent->setLookAndFeel(minimalistSongLnF);
     btnCurrent->setButtonText ("");
@@ -131,6 +156,30 @@ ExtensionWindow::ExtensionWindow ()
     btnModeSwitch->setTooltip("Switch between rackspaces and songs");
     btnModeSwitch->addListener (this);  
     addAndMakeVisible (btnModeSwitch.get());
+
+    fontUp.reset (new TextButton ("+"));
+    fontUp->setLookAndFeel(popOverLnf);
+    fontUp->setButtonText ("+");
+    fontUp->addListener (this);   
+
+    fontDown.reset (new TextButton ("-"));
+    fontDown->setLookAndFeel(popOverLnf);
+    fontDown->setButtonText ("-");
+    fontDown->addListener (this);   
+
+    fontMono.reset (new TextButton ("Mono"));
+    fontMono->setLookAndFeel(popOverLnf);
+    fontMono->setButtonText ("Mono");
+    fontMono->setClickingTogglesState(true);
+    fontMono->addListener (this);  
+
+    fontPopOverLabel.reset (new Label ("Font","Font"));
+    fontPopOverLabel->setLookAndFeel(popOverLabelLnf);
+
+    fontButtonContainer.addAndMakeVisible(fontUp.get());
+    fontButtonContainer.addAndMakeVisible(fontDown.get());
+    fontButtonContainer.addAndMakeVisible(fontMono.get());
+    fontButtonContainer.addAndMakeVisible(fontPopOverLabel.get());
 
     for (int i = 0; i < DEFAULT_RACKSPACES_SONGS; ++i) {
         std::string number = std::to_string(i);
@@ -173,6 +222,18 @@ ExtensionWindow::ExtensionWindow ()
         container.addAndMakeVisible(subButtons[i]);
         subButtons[i]->setVisible(false);
     }
+
+    // ChordPro
+    for (auto i = 0; i < 100; ++i) {
+        std::string number = std::to_string(i);
+        auto label = new Label(number, number); 
+        chordProLines.add(label);
+        chordProLines[i]->setEditable (false, false, false);
+        chordProLines[i]->setLookAndFeel(chordProLnF);
+        chordProLines[i]->setVisible(true);
+        chordProContainer.addAndMakeVisible(chordProLines[i]);
+    }
+
     draggableResizer.addMouseListener(this, true);
     draggableResizer.setMouseCursor(MouseCursor::LeftRightResizeCursor);
     draggableResizer.setBounds (250,50, 15, getHeight());
@@ -184,9 +245,12 @@ ExtensionWindow::ExtensionWindow ()
     viewport.setViewedComponent(&container, false);
     viewportRight.setViewedComponent(&containerRight, false);
     viewport.getVerticalScrollBar().setColour(ScrollBar::thumbColourId, Colour::fromString(BACKGROUND_COLOR));
+    viewportRight.getVerticalScrollBar().setColour(ScrollBar::thumbColourId, Colour::fromString(BACKGROUND_COLOR));
+
     addAndMakeVisible(viewport);
     addAndMakeVisible(viewportRight);
     addAndMakeVisible(draggableResizer);
+    addAndMakeVisible(fontButtonContainer);
     setSize (Rectangle<int>::fromString(DEFAULT_WINDOW_POSITION).getWidth(), 
              Rectangle<int>::fromString(DEFAULT_WINDOW_POSITION).getHeight()
             );
@@ -245,6 +309,7 @@ void ExtensionWindow::resized()
     int minButtonHeight = 50;
     int largeScrollAreaWidth = 50;
     Point<int> viewPos = viewport.getViewPosition();
+    Point<int> viewRightPos = viewportRight.getViewPosition();
     int columns = 1;
     int buttonHeightRatio = 5; // Ratio of width:height
     auto& lnf = buttons[0]->getLookAndFeel();
@@ -298,7 +363,9 @@ void ExtensionWindow::resized()
 
     header->setBounds (0, 0, getWidth(), 50);
     clock->setBounds (getWidth()/2-50, 0, 100, 50);
-    clock->setVisible(getWidth() > 350 && containerRight.isVisible() ? true : false);
+    clock->setVisible(getWidth() > 450 && containerRight.isVisible() ? true : false);
+    if (viewportRight.getWidth() <= 305 && viewportRight.isVisible()) fontButtonContainer.setVisible(false);
+
     
     auto r = header->getBounds();
     if (sidePanelOpenButton->isVisible()) {
@@ -319,8 +386,10 @@ void ExtensionWindow::resized()
         } else {
             fullscreenDeactivateButton->setBounds(r.removeFromRight(48).withSizeKeepingCentre (25, 25));
         }
+        lightDarkModeButton->setBounds (r.removeFromRight (45).withSizeKeepingCentre (27, 27));
+        fontButton->setBounds (r.removeFromRight (45).withSizeKeepingCentre (27, 27));
     }
-   
+    
     int scrollbarBuffer = 2;
     int selectedButton = 999;
     for (size_t i = 0; i < buttons.size(); ++i) {
@@ -348,7 +417,9 @@ void ExtensionWindow::resized()
 
     container.setBounds(0, 50, juce::jmax (minWindowWidth-10, x - 10), (buttons[0]->getHeight() + padding) * rowCount );
     containerRight.setBounds(juce::jmax (minWindowWidth-10, x - 10), 50, getWidth()- juce::jmax (minWindowWidth, x), getHeight()-50);
-    
+    chordProContainer.setBounds(juce::jmax (MIN_WINDOW_WIDTH-10, x - 10), HEADER_HEIGHT, getWidth()- juce::jmax (MIN_WINDOW_WIDTH, x), getHeight()-HEADER_HEIGHT);
+    fontButtonContainer.setBounds(getWidth() - 300, HEADER_HEIGHT, 290, HEADER_HEIGHT);
+ 
     viewport.setBounds(0, 50, juce::jmax (minWindowWidth, x), getHeight()-50);
     viewport.setViewPosition(viewPos);
     viewportRight.setBounds(juce::jmax (minWindowWidth, x), 50, getWidth() - juce::jmax (minWindowWidth, x), getHeight());
@@ -358,8 +429,41 @@ void ExtensionWindow::resized()
     btnNext->setBounds (10 , containerRight.getHeight()*3/4, containerRight.getWidth()-10, containerRight.getHeight()/4);
     btnModeSwitch->setBounds (15, 0, getWidth() > 230 ? 120 : 60, 50);
 
+    fontDown->setBounds (80,5,50,HEADER_HEIGHT-10);
+    fontUp->setBounds (140,5,50,HEADER_HEIGHT-10);
+    fontMono->setBounds (200,5,80,HEADER_HEIGHT-10);
+    fontPopOverLabel->setBounds (0, 0, 80, HEADER_HEIGHT);
+
     draggableResizer.setVisible(displayRightPanel);
-    containerRight.setVisible(displayRightPanel);
+    viewportRight.setVisible(displayRightPanel);
+
+    if (chordProForCurrentSong) {
+        int runningHeight = 0;
+        std::string line;
+        for (auto i = 0; i < chordProLines.size(); ++i) {
+            if (chordProLines[i]->isVisible()) {
+                if (chordProLines[i]->getProperties()["type"] == "chordAndLyrics") {
+                    rowHeight = static_cast<int>(80.0 * chordProFontSize);
+                } else if (chordProLines[i]->getProperties()["type"] == "title") {
+                    rowHeight = static_cast<int>(80.0 * chordProFontSize);
+                } else if (chordProLines[i]->getProperties()["type"] == "label") {
+                    rowHeight = static_cast<int>(50.0 * chordProFontSize);
+                } else if (chordProLines[i]->getProperties()["type"] == "comment") {
+                    rowHeight = static_cast<int>(50.0 * chordProFontSize);
+                } else if (chordProLines[i]->getProperties()["type"] == "tab") {
+                    rowHeight = static_cast<int>(30.0 * chordProFontSize);
+                } else {
+                    rowHeight = static_cast<int>(40.0 * chordProFontSize);
+                }
+                chordProLines[i]->setBounds(10,runningHeight,chordProContainer.getWidth(),rowHeight);
+                runningHeight += rowHeight;
+            } else {
+                chordProLines[i]->setBounds(10,runningHeight,chordProContainer.getWidth(),0);
+            }
+        }
+        chordProContainer.setBounds(juce::jmax (MIN_WINDOW_WIDTH-10, x - 10), HEADER_HEIGHT, getWidth()- juce::jmax (MIN_WINDOW_WIDTH, x + 10), runningHeight + 60);
+    }
+    viewportRight.setViewPosition(viewRightPos);
 }
 
 void ExtensionWindow::refreshUI() {
@@ -379,19 +483,25 @@ void ExtensionWindow::refreshUI() {
     extension->btnNext->setButtonText("");
 
     if (lib->inSetlistMode()) {
+            int songIndex = lib->getCurrentSongIndex();
             updateButtonLabel(SONG_TITLE);
             setTitleBarName(SONG_WINDOW_TITLE);
             updateButtonNames(lib->getSongNames());
-            updateSubButtonNames(lib->getSongPartNames(lib->getCurrentSongIndex()));
+            updateSubButtonNames(lib->getSongPartNames(songIndex));
             selectButton(lib->getCurrentSongIndex());
             selectSubButton(lib->getCurrentSongpartIndex());
+            chordProReadFile(songIndex);
     } else {
+            int rackspaceIndex = lib->getCurrentRackspaceIndex();
             updateButtonLabel(RACKSPACE_TITLE);
             setTitleBarName(RACKSPACE_WINDOW_TITLE);
             updateButtonNames(lib->getRackspaceNames());
-            updateSubButtonNames(lib->getVariationNames(lib->getCurrentRackspaceIndex()));
-            selectButton(lib->getCurrentRackspaceIndex());
+            updateSubButtonNames(lib->getVariationNames(rackspaceIndex));
+            selectButton(rackspaceIndex);
             selectSubButton(lib->getCurrentVariationIndex());
+            extension->chordProForCurrentSong = false;
+            extension->chordProReset();
+            extension->chordProDisplayGUI(false);
     }
     extension->resized();
 }
@@ -754,11 +864,15 @@ void ExtensionWindow::buttonClicked (Button* buttonThatWasClicked)
             sidePanelOpenButton->setVisible(false);
             fullscreenActivateButton->setVisible(true);
             clock->setVisible(true);
+            if (lib->inSetlistMode() && chordProForCurrentSong) {
+                extension->chordProDisplayGUI(true);
+            }
         } else {
             setSize(container.getWidth() + 10, getHeight());
             sidePanelCloseButton->setVisible(false);
             sidePanelOpenButton->setVisible(true);
             fullscreenActivateButton->setVisible(false);
+            extension->chordProDisplayGUI(false);
             clock->setVisible(false);
         }
         resized();
@@ -854,6 +968,8 @@ void ExtensionWindow::buttonClicked (Button* buttonThatWasClicked)
         int buttonIndex = getButtonSelected();
         if (lib->inSetlistMode()) {
             bool success = lib->switchToSong(buttonIndex, subButtonIndex);
+            std::string songpartName = lib->getSongpartName(buttonIndex, subButtonIndex);
+            chordProScrollToSongPart(songpartName);
         } else {
             bool success = lib->switchToRackspace(buttonIndex, subButtonIndex);
         }
@@ -870,6 +986,23 @@ void ExtensionWindow::buttonClicked (Button* buttonThatWasClicked)
         }
     } else if (buttonThatWasClicked == btnModeSwitch.get()) {
         lib->inSetlistMode() ? lib->switchToPanelView() : lib->switchToSetlistView();
+    } else if (buttonThatWasClicked == fontDown.get()) {
+        chordProFontSize = (chordProFontSize <= CP_MIN_FONT_SIZE) ? chordProFontSize : chordProFontSize - CP_FONT_STEP_SIZE; 
+        extension->resized();
+    } else if (buttonThatWasClicked == fontUp.get()) {
+        chordProFontSize = (chordProFontSize >= CP_MAX_FONT_SIZE) ? chordProFontSize : chordProFontSize + CP_FONT_STEP_SIZE;
+        extension->resized();
+    } else if (buttonThatWasClicked == fontMono.get()) {
+        chordProMonospaceFont = !chordProMonospaceFont;
+        extension->resized();
+    } else if (buttonThatWasClicked == fontButton.get()) {
+        fontButtonContainer.setVisible(!fontButtonContainer.isVisible());
+        extension->resized();
+    } else if (buttonThatWasClicked == lightDarkModeButton.get()) {
+        chordProDarkMode = !chordProDarkMode;
+        Point<int> viewRightPos = viewportRight.getViewPosition();
+        extension->chordProDisplayGUI(true);
+        viewportRight.setViewPosition(viewRightPos);
     }
 }
 
@@ -931,12 +1064,226 @@ void ExtensionWindow::processPreferencesColors(StringPairArray prefs) {
     extension->buttonColors.addArray(prefs);
 }
 
+void ExtensionWindow::processPreferencesChordPro(StringPairArray prefs) {
+    extension->chordProColors.addArray(prefs);
+    extension->chordProSetColors();
+}
+
 void ExtensionWindow::removeColorKeywordFromName(bool remove) {
     extension->preferences->setProperty("RemoveColorKeywordFromName", remove); 
 }
 
 void ExtensionWindow::updateClock(const String& formattedTime) {
     extension->clock->setText(formattedTime, dontSendNotification);
+}
+
+void ExtensionWindow::chordProScrollWindow(double value) {
+    Point<int> viewportPosition = extension->viewportRight.getViewPosition();
+    Rectangle<int> viewportBounds = extension->viewportRight.getViewArea();
+    Rectangle<int> containerBounds = extension->chordProContainer.getBounds();
+    int deltaH = containerBounds.getHeight() - viewportBounds.getHeight();
+    deltaH = (deltaH < 0) ? 0 : deltaH;
+    int newY = (int) (value * (double) deltaH);
+    viewportPosition.setY(newY);
+    extension->viewportRight.setViewPosition(viewportPosition);
+}
+
+void ExtensionWindow::chordProProcessText(std::string text) {
+    StringArray lines = StringArray::fromLines(text);
+    String line;
+    int firstLineWithContent = false;
+    StringArray directiveParts;
+    String directiveName;
+    String directiveValue;
+    bool tabLine = false;
+    extension->chordProReset();
+
+    // Extend size if needed
+    if (lines.size() > extension->chordProLines.size() - 1) {
+        int priorLines = extension->chordProLines.size();
+        int newLines = lines.size() - priorLines + 1;
+        for (int i = 0; i < newLines; ++i) { 
+            std::string number = std::to_string(priorLines + i);
+            auto label = new Label(number, number); 
+            extension->chordProLines.add(label);
+            extension->chordProLines[i]->setEditable (false, false, false);
+            extension->chordProLines[i]->setLookAndFeel(extension->chordProLnF);
+            extension->chordProLines[i]->setVisible(true);
+        }
+    }
+
+    for (int i = 0; i < lines.size() + 1; ++i) { 
+        line = lines[i].toStdString();
+        if (line.trim() != "") firstLineWithContent = true;
+        if (firstLineWithContent) {
+            extension->chordProLines[i]->setVisible(true);
+            if (line.contains("{")) { // Directive
+                extension->chordProLines[i]->getProperties().set("type", "directive"); 
+                line = line.removeCharacters("{}");
+                if (line.contains(":")) {
+                    directiveParts = StringArray::fromTokens(line,":",""); // Split directive
+                    directiveName = directiveParts[0].removeCharacters(" ").toLowerCase();
+                    directiveValue = directiveParts[1].trim();
+                    if (directiveName == "title" || directiveName == "t") {
+                        extension->chordProLines[i]->setLookAndFeel(extension->chordProTitleLnF);
+                        extension->chordProLines[i]->getProperties().set("type", "title"); 
+                    } else if (directiveName == "subtitle" || directiveName == "st") {
+                        extension->chordProLines[i]->setLookAndFeel(extension->chordProSubTitleLnF);
+                        extension->chordProLines[i]->getProperties().set("type", "subtitle"); 
+                    } else if (directiveName == "comment" || directiveName == "c") {
+                        extension->chordProLines[i]->setLookAndFeel(extension->chordProCommentLnF);
+                        extension->chordProLines[i]->getProperties().set("type", "comment"); 
+                    } else if (directiveName == "songpartname") {
+                        extension->chordProLines[i]->setVisible(false);
+                        extension->chordProLines[i]->getProperties().set("type", "gp_songpartname"); 
+                    } else if (directiveName.contains("start_of") || directiveName.contains("end_of") || (directiveName.length() == 3 && (directiveName.contains("so") || directiveName.contains("eo")))) {
+                        extension->chordProLines[i]->setLookAndFeel(extension->chordProLabelLnF);
+                        extension->chordProLines[i]->getProperties().set("type", "label"); 
+                    } else {
+                        extension->chordProLines[i]->setLookAndFeel(extension->chordProSubTitleLnF);
+                        extension->chordProLines[i]->getProperties().set("type", "subtitle"); 
+                        directiveValue = directiveName.substring(0,1).toUpperCase() + directiveName.substring(1,directiveName.length()) + ": " + directiveValue;
+                    } 
+                } else {
+                    extension->chordProLines[i]->setVisible(false);
+                    directiveName = line.removeCharacters(" ");
+                }
+                if (directiveName == "start_of_tab" || directiveName == "sot") {
+                    tabLine = true;
+                } else if (directiveName == "end_of_tab" || directiveName == "eot") {
+                    tabLine = false;
+                }
+                extension->chordProLines[i]->setText(directiveValue, dontSendNotification);
+            } else {
+                if (tabLine) {
+                    extension->chordProLines[i]->setLookAndFeel(extension->chordProTabLnF);
+                    extension->chordProLines[i]->getProperties().set("type", "tab");
+                } 
+                if (line.contains("[")) {
+                    String excludeChords = std::regex_replace(line.toStdString(), std::regex("\\[(.*?)\\]"), "");
+                    if (excludeChords.trim() == "") {
+                        extension->chordProLines[i]->getProperties().set("type", "chordOnly"); 
+                        StringArray words = StringArray::fromTokens(lines[i],false);
+                        for (int j = 0; j < words.size(); ++j) { 
+                             String word = words[j].toStdString();
+                             lib->consoleLog("Word: " + word.toStdString());
+                            if  (word != "") {
+                                if (!word.startsWith("[")) {
+                                    word = "[" + word;
+                                }
+                                if (!word.endsWith("]")) {
+                                    word = word + "]";
+                                }  
+                                words.set(j, word);
+                            }
+                        }
+                        line = words.joinIntoString(" ", 0, -1);
+                        lib->consoleLog("Chords Only: " + line.toStdString());
+                    } else {
+                        extension->chordProLines[i]->getProperties().set("type", "chordAndLyrics"); 
+                    }
+                }
+                extension->chordProLines[i]->setText(line.trim(), dontSendNotification);
+            }
+        }
+    }
+    extension->resized();
+}
+
+void ExtensionWindow::chordProReadFile(int index) {
+    char *homedir;
+    std::string cpPath;
+    std::string cpFullPath;
+    std::string cpFileText;
+    std::string cpFile = lib->getChordProFilenameForSong(index);
+    extension->chordProForCurrentSong = (cpFile == "") ? false : true;
+    extension->chordProDisplayGUI(extension->chordProForCurrentSong);
+    if (!extension->chordProForCurrentSong) {
+        lib->consoleLog("No Chord Pro File");
+        extension->chordProReset();
+        
+        return;
+    } else {
+
+    }
+    #ifdef _WIN32
+        if ((homedir = getenv("USERPROFILE")) != NULL) {
+            std::string s;
+            std::stringstream ss;
+            ss << homedir;
+            ss >> s;
+            cpPath = s + "\\Documents\\Gig Performer Song Lyrics-Chords";
+            cpFullPath = cpPath + separator() + cpFile;
+            gigperformer::sdk::GPUtils::loadTextFile(cpFullPath, cpFileText);
+            chordProProcessText(cpFileText);
+        }
+    #else
+        if ((homedir = getenv("HOME")) != NULL) {
+            std::string s;
+            std::stringstream ss;
+            ss << homedir;
+            ss >> s;
+            cpPath = s + "/Documents/Gig Performer Song Lyrics-Chords";
+            cpFullPath = cpPath + separator() + cpFile;
+            gigperformer::sdk::GPUtils::loadTextFile(cpFullPath, cpFileText);
+            chordProProcessText(cpFileText);
+        }   
+    #endif
+}
+
+void ExtensionWindow::chordProReset() {
+    for (int i = 0; i < extension->chordProLines.size(); ++i) { 
+        extension->chordProLines[i]->setLookAndFeel(extension->chordProLnF);
+        extension->chordProLines[i]->setText("", dontSendNotification);
+        extension->chordProLines[i]->setVisible(false);
+        extension->chordProLines[i]->getProperties().set("type", ""); 
+    }
+}
+
+void ExtensionWindow::chordProScrollToSongPart(std::string songPartName) {
+    int viewY;
+    int btnY;
+    Rectangle<int> viewportBounds = extension->viewportRight.getViewArea();
+    for (int i = 0; i < extension->chordProLines.size(); ++i) { 
+        if (extension->chordProLines[i]->getProperties()["type"] == "gp_songpartname") {
+            if (extension->chordProLines[i]->getText().toStdString() == songPartName) {
+                lib->consoleLog("Song Part Found: "+songPartName);
+                Rectangle<int> buttonBounds = extension->chordProLines[i]->getBounds();
+                viewY = viewportBounds.getY() + viewportBounds.getHeight();
+                btnY = buttonBounds.getY() + buttonBounds.getHeight();
+                extension->viewportRight.setViewPosition(0, buttonBounds.getY());
+            }
+        }
+    }
+}
+
+void ExtensionWindow::chordProDisplayGUI(bool display) { 
+    fontButton->setVisible(display && displayRightPanel);
+    lightDarkModeButton->setVisible(display && displayRightPanel);
+    if (!display) fontButtonContainer.setVisible(false);
+    if (display) { 
+        extension->viewportRight.setViewedComponent(&extension->chordProContainer, false);
+        extension->chordProSetColors();
+    } else {
+        if (!chordProForCurrentSong) {
+            extension->viewportRight.setViewedComponent(&extension->containerRight, false);
+            viewPortBackground = Colour::fromString(BACKGROUND_COLOR);
+        }
+    }
+    extension->viewportRight.setViewPosition(0,0);
+    extension->resized();
+}
+
+void ExtensionWindow::chordProSetColors() { 
+    if (chordProDarkMode) {
+        chordProLyricColor = Colour::fromString(extension->chordProColors.getValue("ChordProDarkModeColorsLyrics",CP_DARK_LYRIC_COLOR));
+        chordProChordColor = Colour::fromString(extension->chordProColors.getValue("ChordProDarkModeColorsChords",CP_DARK_CHORD_COLOR));
+        viewPortBackground = Colour::fromString(extension->chordProColors.getValue("ChordProDarkModeColorsBackground",CP_DARK_BACKGROUND_COLOR));
+    } else {
+        chordProLyricColor = Colour::fromString(extension->chordProColors.getValue("ChordProLightModeColorsLyrics",CP_LIGHT_LYRIC_COLOR));
+        chordProChordColor = Colour::fromString(extension->chordProColors.getValue("ChordProLightModeColorsChords",CP_LIGHT_CHORD_COLOR));
+        viewPortBackground = Colour::fromString(extension->chordProColors.getValue("ChordProLightModeColorsBackground",CP_LIGHT_BACKGROUND_COLOR));
+    }
 }
 
 void MyDocumentWindow::closeButtonPressed () { 

@@ -6,6 +6,10 @@
 
 using namespace juce;
 
+extern Colour chordProLyricColor;
+extern Colour chordProChordColor;
+extern bool chordProMonospaceFont;
+
 class buttonLookAndFeel : public LookAndFeel_V4 {
 public:
 	void drawButtonText (Graphics& g, TextButton& button,
@@ -315,4 +319,216 @@ public:
         g.fillAll (Colour (0xff1C1C1C));
      }
   }
+};
+
+class chordPro : public LookAndFeel_V4 {
+public:
+  void drawLabel (Graphics& g, Label& label) {
+    StringArray wordParts;
+    StringArray finalText;
+    bool priorPartIsChord;
+    bool successiveChords;
+    double lastWordPosition = 0.0;
+    double lastChordPosition = 0.0;
+    double lastPosition = 0.0;
+    double nextWordPosition = 0.0;
+    int leftPad = 50;
+    auto labelArea = label.getLocalBounds();
+
+    Font font (Font (label.getHeight(), Font::plain));
+    Font chordFont (Font (label.getHeight(), Font::plain));
+
+    if (chordProMonospaceFont) {
+      font.setTypefaceName(Font::getDefaultMonospacedFontName());
+      chordFont.setTypefaceName(Font::getDefaultMonospacedFontName());      
+    } else {
+      font = font.withTypefaceStyle("Regular").withExtraKerningFactor(0.06f);
+      chordFont = chordFont.withTypefaceStyle("Regular");
+    }
+    if (label.getProperties()["type"] == "chordAndLyrics") {
+      font = font.withHeight(label.getHeight() * 0.5f);
+      chordFont = chordFont.withHeight(label.getHeight() * 0.5f);
+    } 
+    g.setFont (chordFont);
+    StringArray words = StringArray::fromTokens(label.getText(),false);
+    for (int i = 0; i < words.size(); ++i) { 
+      priorPartIsChord = false;
+      successiveChords = false;
+      wordParts = StringArray::fromTokens(words[i],"[]","");
+      if (i==0 && !(label.getProperties()["type"] == "chordOnly")) wordParts.removeEmptyStrings();
+      String chordCheck;
+      String chord;
+
+      for (int j = 0; j < wordParts.size(); ++j) {
+        chordCheck = "["+wordParts[j]+"]";
+        if (words[i].contains(chordCheck) || label.getProperties()["type"] == "chordOnly") { // Is a chord    
+          chord = wordParts[j];
+          successiveChords = priorPartIsChord;
+          priorPartIsChord = true;
+          g.setFont (chordFont);
+          g.setColour(chordProChordColor);
+          if (lastWordPosition < lastChordPosition) {
+            lastWordPosition = lastChordPosition;
+          } 
+          g.drawFittedText (chord,
+          lastWordPosition + leftPad, 2, label.getWidth(), label.getHeight(),
+          Justification::topLeft, 1, 1.0f);
+          lastChordPosition = lastWordPosition + font.getStringWidthFloat(wordParts[j]);// + (label.getHeight() / 4);
+          if (label.getProperties()["type"] == "chordAndLyrics") lastChordPosition = lastChordPosition + font.getStringWidthFloat(" "); // Force minimum gap
+          lastPosition += font.getStringWidthFloat(wordParts[j]);
+        } else {
+          g.setColour (chordProLyricColor);
+          g.setFont (font);
+          g.drawFittedText ( wordParts[j],
+            lastWordPosition + leftPad, 0, label.getWidth(), label.getHeight(),
+            Justification::bottomLeft, 1, 1.0f);
+          chord = "";
+          priorPartIsChord = false;
+          lastWordPosition += font.getStringWidthFloat(wordParts[j]);
+          lastPosition += font.getStringWidthFloat(wordParts[j]);
+        }
+      }
+      lastWordPosition += font.getStringWidthFloat(" "); 
+    }
+  }
+};
+
+class chordProTitle : public LookAndFeel_V4 {
+public:
+  void drawLabel (Graphics& g, Label& label) {
+    auto labelArea = label.getLocalBounds();
+    int leftPad = 50;
+    g.setFont (Font (label.getHeight() * 0.85f, Font::plain).withTypefaceStyle ("Regular")); //.boldened());
+    g.setColour (chordProLyricColor);
+    g.drawFittedText (label.getText(),
+				leftPad, 0, label.getWidth(), label.getHeight (),
+				Justification::centredLeft, 1, 1.0f);
+    g.setColour (Colours::white);
+  }
+};
+
+class chordProSubTitle : public LookAndFeel_V4 {
+public:
+  void drawLabel (Graphics& g, Label& label) {
+    auto labelArea = label.getLocalBounds();
+    int leftPad = 50;
+    g.setFont (Font (label.getHeight(), Font::plain).withTypefaceStyle ("Regular").italicised());
+    g.setColour (chordProLyricColor.withAlpha(0.8f));
+    g.drawFittedText (label.getText(),
+				leftPad, 0, label.getWidth(), label.getHeight (),
+				Justification::centredLeft, 1, 1.0f);
+    g.setColour (Colours::white);
+  }
+};
+
+class chordProComment : public LookAndFeel_V4 {
+public:
+  void drawLabel (Graphics& g, Label& label) {
+    int leftPad = 50;
+    auto labelArea = label.getLocalBounds();
+    g.setColour (Colours::lightgrey.withAlpha(0.3f));
+    Font font (Font (label.getHeight() * 0.8f, Font::plain).withTypefaceStyle ("Regular").italicised());
+    g.setFont (font);
+    auto textWidth = (int) font.getStringWidthFloat(label.getText());
+    auto textHeight = (int) font.getHeight();
+    auto y = (int) (labelArea.getHeight() - textHeight) / 2;
+    g.fillRect( leftPad - 10, y - 5, textWidth + 25, textHeight + 10);
+    g.setColour (chordProLyricColor.withAlpha(0.8f));
+    g.drawFittedText (label.getText(),
+				leftPad, y, label.getWidth(), textHeight,
+				Justification::centredLeft, 1, 1.0f);
+    g.setColour (Colours::white);
+  }
+};
+
+class chordProLabel : public LookAndFeel_V4 {
+public:
+  void drawLabel (Graphics& g, Label& label) {
+    auto labelArea = label.getLocalBounds();
+    int leftPad = 50;
+    Font font ((Font (label.getHeight(), Font::plain).withTypefaceStyle ("Regular").boldened()));
+    g.setFont (font);
+    g.setColour (chordProLyricColor.withAlpha(0.9f));
+    g.drawFittedText (label.getText(),
+				leftPad, 0, label.getWidth(), label.getHeight (),
+				Justification::centredLeft, 1, 1.0f);
+    g.setColour (Colours::white);
+    auto textWidth = (int) font.getStringWidthFloat(label.getText());
+    g.setColour (Colours::grey);
+    g.drawLine(leftPad, labelArea.getBottom(), leftPad + textWidth, labelArea.getBottom(), 3);
+  }
+};
+
+class chordProTab : public LookAndFeel_V4 {
+public:
+  void drawLabel (Graphics& g, Label& label) {
+    auto labelArea = label.getLocalBounds();
+    int leftPad = 50;
+    Font font (Font (label.getHeight(), Font::plain));
+    font.setTypefaceName(Font::getDefaultMonospacedFontName());
+    g.setFont (font);
+    auto textWidth = (int) font.getStringWidthFloat(label.getText());
+    auto textHeight = (int) font.getHeight();
+    g.setColour (Colours::grey.withAlpha(0.08f));
+    g.fillRect( leftPad, 0, textWidth, textHeight);
+    String text = label.getText().toStdString();
+    int runningTextWidth = 0;
+    for (int i = 0; i < text.length(); i++) {
+      g.setColour (chordProLyricColor.withAlpha(0.8f));
+      runningTextWidth = (int) font.getStringWidthFloat(text.substring(0, i));
+      if (text.substring(i, i+1) == "-" || text.substring(i, i+1) == "|") {
+        g.setColour (chordProLyricColor.withAlpha(0.3f));
+      }
+      g.drawFittedText (text.substring(i, i+1),
+        leftPad + runningTextWidth, 0, label.getWidth(), label.getHeight (),
+        Justification::centredLeft, 1, 1.0f);
+    }
+  }
+};
+
+class popOverLookAndFeel : public LookAndFeel_V4 {
+public:
+  void drawButtonText (Graphics& g, TextButton& button,
+		bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown)
+	{
+		Font font (button.getHeight() * ((button.getName() == "Mono") ? 0.5 : 0.9));
+    auto height = ((button.getName() == "Mono") ? button.getHeight() : button.getHeight() * 0.85);
+		g.setFont (font);
+		g.setColour (Colours::white);
+    g.drawFittedText (button.getButtonText(),
+				0, 0, button.getWidth(), height,
+				Justification::centred, 1, 1.0f);
+    }
+
+  void drawButtonBackground (juce::Graphics& g, juce::Button& button, const juce::Colour& backgroundColour,
+                              bool isButtonHighlighted, bool isButtonDown) {
+    auto buttonArea = button.getLocalBounds().toFloat().reduced (0.5f);
+    float cornerSize = 5.f;
+    if (button.getToggleState()) {
+      g.setColour (Colour(0xff6a6a6a));
+      
+    } else if (isButtonHighlighted && !isButtonDown) {
+      g.setColour (Colours::darkgrey);
+    } else if (isButtonDown) {
+      g.setColour (Colour(0xff9a9a9a));
+    } else {
+      g.setColour (Colour(0xff2f2f2f));
+    }   
+    g.fillRoundedRectangle (buttonArea, cornerSize);
+    g.setColour(Colours::white.withAlpha(0.1f));
+    g.drawRoundedRectangle (buttonArea, cornerSize, 2.f);       
+  }
+};
+
+class popOverLabel : public LookAndFeel_V4 {
+public:
+	void drawLabel (Graphics& g, Label& label) {
+		const int yIndent = label.proportionOfHeight (0.2f);
+		const int textWidth = label.getWidth();
+    g.setFont (Font (25.00f, Font::plain).withTypefaceStyle ("Regular"));
+    g.setColour (chordProLyricColor.withMultipliedBrightness(0.8f));
+    g.drawFittedText (label.getText(),
+      15, 0, textWidth, label.getHeight(),
+      Justification::left, 1, 1.0f);
+    }
 };

@@ -166,6 +166,7 @@ void LibMain::OnSongChanged(int oldIndex, int newIndex) {
     if (isGigFileLoading) return;
     if (newIndex >= 0 && inSetlistMode()) {
         ExtensionWindow::updateButtonNames(getSongNames());
+        ExtensionWindow::chordProReadFile(newIndex);
         if (!ExtensionWindow::isButtonSelected(newIndex)) { // If selected in GP directly, ensure buttons are in sync
             ExtensionWindow::selectButton(newIndex);
             ExtensionWindow::updateSubButtonNames(getSongPartNames(newIndex));
@@ -183,6 +184,7 @@ void LibMain::OnSongPartChanged(int oldIndex, int newIndex) {
         if (!ExtensionWindow::isSubButtonSelected(newIndex)) {
             ExtensionWindow::updateSubButtonNames(getSongPartNames(songIndex));
             ExtensionWindow::selectSubButton(newIndex);
+            ExtensionWindow::chordProScrollToSongPart(getSongpartName(getCurrentSongIndex(),newIndex));
         }
     }
 }
@@ -211,6 +213,8 @@ void LibMain::OnWidgetValueChanged(const std::string &widgetName, double newValu
         }
     } else if (widgetName == WIDGET_SCROLL) {
             ExtensionWindow::scrollWindow(newValue);
+    } else if (widgetName == WIDGET_CP_SCROLL) {
+            ExtensionWindow::chordProScrollWindow(newValue);
     }
 }
 
@@ -221,31 +225,33 @@ void LibMain::readPreferencesFile(std::string onlySection = "") {
     StringArray keyValue;
     StringPairArray defaults;
     StringPairArray colors;
+    StringPairArray chordpro;
     String line;
     String prefSection;
     for (int i = 0; i < lines.size(); ++i) { 
         line = lines[i].toStdString();
         if (line.contains("[")) { // Preference Heading/Section
-            if (line.contains("[Defaults]")) {
-                prefSection = "Defaults";
-            } else if (line.contains("[Colors]")) {
-                prefSection = "Colors";
-            }
+            prefSection = line.removeCharacters("[]");
         } else if (line.trim() != "") { // Process Preferences, assuming key/value pairs
             line = line.removeCharacters(" ");
             keyValue = StringArray::fromTokens(line,"=","");
             if (prefSection == "Defaults") {
                 defaults.set(keyValue[0], keyValue[1]);
-            } else {
+            } else if (prefSection == "SongPartVariationColors" || prefSection == "Colors") {
                 colors.set(keyValue[0], keyValue[1]);
+            } else if (prefSection.contains("ChordPro")) {
+                chordpro.set(prefSection + keyValue[0], keyValue[1]);
             }
         }
     }
     if (onlySection == "defaults" || onlySection == "") {
         ExtensionWindow::processPreferencesDefaults(defaults);
-    } 
+    }
     if (onlySection == "colors" || onlySection == "") {
         ExtensionWindow::processPreferencesColors(colors);
+    }
+    if (onlySection == "chordpro" || onlySection == "") {
+        ExtensionWindow::processPreferencesChordPro(chordpro);
     }
 }
 

@@ -55,6 +55,7 @@ public:
 
         listenForWidget(WIDGET_SELECTOR, true);
         listenForWidget(WIDGET_SCROLL, true);
+        listenForWidget(WIDGET_CP_SCROLL, true);
     }
     
     std::string GetProductDescription() override; // This MUST be defined in your class
