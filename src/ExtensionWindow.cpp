@@ -1212,7 +1212,9 @@ void ExtensionWindow::chordProReadFile(int index) {
             ss >> s;
             cpPath = s + "\\Documents\\Gig Performer Song Lyrics-Chords";
             cpFullPath = cpPath + separator() + cpFile;
+            lib->consoleLog("Open: " + cpFullPath);
             gigperformer::sdk::GPUtils::loadTextFile(cpFullPath, cpFileText);
+            lib->consoleLog(cpFileText);
             chordProProcessText(cpFileText);
         }
     #else
