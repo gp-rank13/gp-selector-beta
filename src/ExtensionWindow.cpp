@@ -1203,9 +1203,7 @@ void ExtensionWindow::chordProReadFile(int index) {
         extension->chordProReset();
         
         return;
-    } else {
-
-    }
+    } 
     #ifdef _WIN32
         if ((homedir = getenv("USERPROFILE")) != NULL) {
             std::string s;
