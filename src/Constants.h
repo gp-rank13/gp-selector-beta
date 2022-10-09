@@ -4,13 +4,28 @@
 #define CONSTANTS_H_
 
 // Define the file separator (Windows vs Mac) to be used when reading the preferences file
-const inline char separator()
-{
-#ifdef _WIN32
-    return '\\';
-#else
-    return '/';
-#endif
+const inline char PATH_SEPARATOR() {
+    #ifdef _WIN32
+        return '\\';
+    #else
+        return '/';
+    #endif
+}
+
+static std::string LYRICS_CHORDS_PATH() {
+    #ifdef _WIN32
+        return "\\Documents\\Gig Performer Song Lyrics-Chords\\";
+    #else
+        return "/Documents/Gig Performer Song Lyrics-Chords/";
+    #endif
+}
+
+const inline char* ENVIRONMENT_VARIABLE() {
+    #ifdef _WIN32
+        return "USERPROFILE";
+    #else
+        return "HOME";
+    #endif
 }
 
 // Window title bar and header labels

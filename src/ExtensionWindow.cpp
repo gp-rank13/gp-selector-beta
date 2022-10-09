@@ -1166,7 +1166,6 @@ void ExtensionWindow::chordProProcessText(std::string text) {
                         StringArray words = StringArray::fromTokens(lines[i],false);
                         for (int j = 0; j < words.size(); ++j) { 
                              String word = words[j].toStdString();
-                             lib->consoleLog("Word: " + word.toStdString());
                             if  (word != "") {
                                 if (!word.startsWith("[")) {
                                     word = "[" + word;
@@ -1178,7 +1177,6 @@ void ExtensionWindow::chordProProcessText(std::string text) {
                             }
                         }
                         line = words.joinIntoString(" ", 0, -1);
-                        lib->consoleLog("Chords Only: " + line.toStdString());
                     } else {
                         extension->chordProLines[i]->getProperties().set("type", "chordAndLyrics"); 
                     }
@@ -1191,44 +1189,30 @@ void ExtensionWindow::chordProProcessText(std::string text) {
 }
 
 void ExtensionWindow::chordProReadFile(int index) {
-    char *homedir;
-    std::string cpPath;
-    std::string cpFullPath;
-    std::string cpFileText;
-    std::string cpFile = lib->getChordProFilenameForSong(index);
-    extension->chordProForCurrentSong = (cpFile == "") ? false : true;
+    char *homePath;
+    std::string chordProPath;
+    std::string chordProFileText;
+    std::string chordProFile = lib->getChordProFilenameForSong(index);
+    extension->chordProForCurrentSong = (chordProFile == "") ? false : true;
     extension->chordProDisplayGUI(extension->chordProForCurrentSong);
     if (!extension->chordProForCurrentSong) {
-        lib->consoleLog("No Chord Pro File");
         extension->chordProReset();
-        
         return;
-    } 
-    #ifdef _WIN32
-        if ((homedir = getenv("USERPROFILE")) != NULL) {
-            std::string s;
-            std::stringstream ss;
-            ss << homedir;
-            ss >> s;
-            cpPath = s + "\\Documents\\Gig Performer Song Lyrics-Chords";
-            cpFullPath = cpPath + separator() + cpFile;
-            lib->consoleLog("Open: " + cpFullPath);
-            gigperformer::sdk::GPUtils::loadTextFile(cpFullPath, cpFileText);
-            lib->consoleLog(cpFileText);
-            chordProProcessText(cpFileText);
-        }
-    #else
-        if ((homedir = getenv("HOME")) != NULL) {
-            std::string s;
-            std::stringstream ss;
-            ss << homedir;
-            ss >> s;
-            cpPath = s + "/Documents/Gig Performer Song Lyrics-Chords";
-            cpFullPath = cpPath + separator() + cpFile;
-            gigperformer::sdk::GPUtils::loadTextFile(cpFullPath, cpFileText);
-            chordProProcessText(cpFileText);
-        }   
-    #endif
+    }
+    if ((homePath = getenv(ENVIRONMENT_VARIABLE())) != NULL) {
+        std::string s;
+        std::stringstream ss;
+        ss << homePath;
+        ss >> s;
+        chordProPath = s + LYRICS_CHORDS_PATH() + chordProFile;
+        #ifdef _WIN32
+            String replaced = chordProPath;
+            replaced = replaced.replaceCharacter('/', PATH_SEPARATOR());
+            chordProPath = replaced.toStdString();
+        #endif
+        gigperformer::sdk::GPUtils::loadTextFile(chordProPath, chordProFileText);
+        chordProProcessText(chordProFileText);   
+    }
 }
 
 void ExtensionWindow::chordProReset() {
@@ -1247,7 +1231,6 @@ void ExtensionWindow::chordProScrollToSongPart(std::string songPartName) {
     for (int i = 0; i < extension->chordProLines.size(); ++i) { 
         if (extension->chordProLines[i]->getProperties()["type"] == "gp_songpartname") {
             if (extension->chordProLines[i]->getText().toStdString() == songPartName) {
-                lib->consoleLog("Song Part Found: "+songPartName);
                 Rectangle<int> buttonBounds = extension->chordProLines[i]->getBounds();
                 viewY = viewportBounds.getY() + viewportBounds.getHeight();
                 btnY = buttonBounds.getY() + buttonBounds.getHeight();

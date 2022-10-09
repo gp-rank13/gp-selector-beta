@@ -220,7 +220,7 @@ void LibMain::OnWidgetValueChanged(const std::string &widgetName, double newValu
 
 void LibMain::readPreferencesFile(std::string onlySection = "") {
     std::string prefsFileText;
-    gigperformer::sdk::GPUtils::loadTextFile(getPathToMe() + separator() + PREF_FILENAME, prefsFileText);
+    gigperformer::sdk::GPUtils::loadTextFile(getPathToMe() + PATH_SEPARATOR() + PREF_FILENAME, prefsFileText);
     StringArray lines = StringArray::fromLines(prefsFileText);
     StringArray keyValue;
     StringPairArray defaults;
