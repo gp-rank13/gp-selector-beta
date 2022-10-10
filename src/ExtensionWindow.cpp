@@ -1163,7 +1163,7 @@ void ExtensionWindow::chordProProcessText(std::string text) {
                             
                             #ifdef _WIN32
                                 if (directiveParts.size() == 3) { // File path had a drive letter e.g. C:
-                                    directiveValue = directiveParts[1] + ":" + directiveParts[2];
+                                    directiveValue = directiveParts[1].trim() + ":" + directiveParts[2].trim();
                                 }
                                 lib->consoleLog(directiveValue.toStdString());
                                 auto file1 = File(directiveValue);
