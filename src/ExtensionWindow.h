@@ -141,6 +141,7 @@ public:
   void static chordProScrollToSongPart(std::string text);
   void chordProDisplayGUI(bool display);
   void chordProSetColors();
+  void chordProImagesCheckAndAdd(int index);
 
   static ExtensionWindow* extension;
   MyDraggableComponent draggableResizer;
@@ -175,6 +176,7 @@ public:
   OwnedArray<TextButton> buttons;
   OwnedArray<TextButton> subButtons;
   OwnedArray<Label> chordProLines;
+  OwnedArray<ImageComponent> chordProImages;
   StringPairArray buttonColors;
   StringPairArray chordProColors;
   ClockTimer clockTimer;

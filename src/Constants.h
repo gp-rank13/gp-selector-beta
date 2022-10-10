@@ -67,6 +67,7 @@ const float CP_DEFAULT_FONT_SIZE = 0.7f;
 const float CP_MIN_FONT_SIZE = 0.4f;
 const float CP_MAX_FONT_SIZE = 1.6f;
 const float CP_FONT_STEP_SIZE = 0.1f;
+const int CP_DEFAULT_IMAGES = 10;
 
 const juce::String CP_LIGHT_LYRIC_COLOR = "FF000000";
 const juce::String CP_LIGHT_CHORD_COLOR = "FFFC0000";

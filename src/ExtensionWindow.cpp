@@ -234,6 +234,13 @@ ExtensionWindow::ExtensionWindow ()
         chordProContainer.addAndMakeVisible(chordProLines[i]);
     }
 
+    // ChordPro Images
+    for ( auto i = 0; i < CP_DEFAULT_IMAGES; ++i) {
+        auto imageComponent = new ImageComponent(std::to_string(i));
+        chordProImages.add(imageComponent);
+        chordProContainer.addAndMakeVisible(chordProImages[i]);
+    }
+
     draggableResizer.addMouseListener(this, true);
     draggableResizer.setMouseCursor(MouseCursor::LeftRightResizeCursor);
     draggableResizer.setBounds (250,50, 15, getHeight());
@@ -437,7 +444,7 @@ void ExtensionWindow::resized()
     draggableResizer.setVisible(displayRightPanel);
     viewportRight.setVisible(displayRightPanel);
 
-    if (chordProForCurrentSong) {
+    if (chordProForCurrentSong && viewportRight.isVisible()) {
         int runningHeight = 0;
         std::string line;
         for (auto i = 0; i < chordProLines.size(); ++i) {
@@ -452,6 +459,16 @@ void ExtensionWindow::resized()
                     rowHeight = static_cast<int>(50.0 * chordProFontSize);
                 } else if (chordProLines[i]->getProperties()["type"] == "tab") {
                     rowHeight = static_cast<int>(30.0 * chordProFontSize);
+                } else if (chordProLines[i]->getProperties()["type"] == "image") {
+                    rowHeight = 0;
+                    int imageIndex = chordProLines[i]->getProperties()["imageIndex"]; 
+                    if (extension->chordProImages[imageIndex]->isVisible()) {
+                        double originalHeight = (double)(extension->chordProImages[imageIndex]->getImage().getHeight());
+                        double ratio = (double)(extension->chordProImages[imageIndex]->getImage().getWidth()) / (double)(chordProContainer.getWidth());
+                        double newHeight = originalHeight / ratio;
+                        rowHeight = static_cast<int>(newHeight); 
+                        extension->chordProImages[imageIndex]->setBounds(0, runningHeight, chordProContainer.getWidth(), rowHeight);
+                    }
                 } else {
                     rowHeight = static_cast<int>(40.0 * chordProFontSize);
                 }
@@ -1092,6 +1109,7 @@ void ExtensionWindow::chordProProcessText(std::string text) {
     StringArray lines = StringArray::fromLines(text);
     String line;
     int firstLineWithContent = false;
+    int imageCount = 0;
     StringArray directiveParts;
     String directiveName;
     String directiveValue;
@@ -1139,6 +1157,20 @@ void ExtensionWindow::chordProProcessText(std::string text) {
                     } else if (directiveName.contains("start_of") || directiveName.contains("end_of") || (directiveName.length() == 3 && (directiveName.contains("so") || directiveName.contains("eo")))) {
                         extension->chordProLines[i]->setLookAndFeel(extension->chordProLabelLnF);
                         extension->chordProLines[i]->getProperties().set("type", "label"); 
+                    } else if (directiveName == "image") {
+                            extension->chordProLines[i]->getProperties().set("type", "image"); 
+                            auto file = File(directiveValue.removeCharacters("\"").toStdString());
+                            Image image = ImageFileFormat::loadFrom(file);
+                            ImageComponent imageComponent;
+                            if (image.isValid()) {
+                                extension->chordProImagesCheckAndAdd(imageCount);
+                                extension->chordProImages[imageCount]->setImage(image);
+                                extension->chordProImages[imageCount]->setImagePlacement (RectanglePlacement (RectanglePlacement::fillDestination | RectanglePlacement::xLeft | RectanglePlacement::yTop));
+                                extension->chordProImages[imageCount]->setVisible(true);
+                                extension->chordProLines[i]->getProperties().set("imageIndex", imageCount);
+                                imageCount++;
+                            }
+                            directiveValue = "";
                     } else {
                         extension->chordProLines[i]->setLookAndFeel(extension->chordProSubTitleLnF);
                         extension->chordProLines[i]->getProperties().set("type", "subtitle"); 
@@ -1222,6 +1254,9 @@ void ExtensionWindow::chordProReset() {
         extension->chordProLines[i]->setVisible(false);
         extension->chordProLines[i]->getProperties().set("type", ""); 
     }
+    for (int i = 0; i < extension->chordProImages.size(); ++i) { 
+        extension->chordProImages[i]->setVisible(false);
+    }
 }
 
 void ExtensionWindow::chordProScrollToSongPart(std::string songPartName) {
@@ -1268,6 +1303,19 @@ void ExtensionWindow::chordProSetColors() {
         viewPortBackground = Colour::fromString(extension->chordProColors.getValue("ChordProLightModeColorsBackground",CP_LIGHT_BACKGROUND_COLOR));
     }
 }
+
+void ExtensionWindow::chordProImagesCheckAndAdd(int index) {
+    int existingCount = extension->chordProImages.size();
+    int newCount = index + 1;
+    if (newCount > existingCount) {
+        int newImages = newCount - existingCount;
+        for (auto i = 0; i < newImages; ++i) {     
+            auto imageComponent = new ImageComponent(std::to_string(existingCount+i));
+            chordProImages.add(imageComponent);
+            chordProContainer.addAndMakeVisible(chordProImages[existingCount+i]);
+        }
+    }
+} 
 
 void MyDocumentWindow::closeButtonPressed () { 
     ExtensionWindow::displayWindow(false);
