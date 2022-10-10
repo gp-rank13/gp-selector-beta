@@ -1167,8 +1167,8 @@ void ExtensionWindow::chordProProcessText(std::string text) {
                                 lib->consoleLog(directiveValue.toStdString());
                                 path = directiveValue.removeCharacters("\"");
                                 lib->consoleLog(path.toStdString());
-                                path = path.replaceCharacters("\\","\\\\");
-                                lib->consoleLog(path.toStdString());
+                                //path = path.replaceCharacters("\\","\\\\");
+                                //lib->consoleLog(path.toStdString());
                             #else
                                 path = directiveValue.removeCharacters("\"");
                             #endif
