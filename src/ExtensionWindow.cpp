@@ -1161,11 +1161,14 @@ void ExtensionWindow::chordProProcessText(std::string text) {
                             extension->chordProLines[i]->getProperties().set("type", "image"); 
                             String path;
                             #ifdef _WIN32
-                                path = directiveValue.removeCharacters("\"").replaceCharacters("\\","\\\\");
+                                lib->consoleLog(directiveName.toStdString());
+                                path = directiveValue.removeCharacters("\"")
+                                lib->consoleLog(path.toStdString());
+                                path = path.replaceCharacters("\\","\\\\");
+                                lib->consoleLog(path.toStdString());
                             #else
                                 path = directiveValue.removeCharacters("\"");
                             #endif
-                            lib->consoleLog(path.toStdString());
                             auto file = File(path);
                             Image image = ImageFileFormat::loadFrom(file);
                             if (image.isValid()) {
