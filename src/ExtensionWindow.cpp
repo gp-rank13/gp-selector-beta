@@ -1158,42 +1158,16 @@ void ExtensionWindow::chordProProcessText(std::string text) {
                         extension->chordProLines[i]->setLookAndFeel(extension->chordProLabelLnF);
                         extension->chordProLines[i]->getProperties().set("type", "label"); 
                     } else if (directiveName == "image") {
-                            extension->chordProLines[i]->getProperties().set("type", "image"); 
-                            String path;
-                            
+                            extension->chordProLines[i]->getProperties().set("type", "image");                             
                             #ifdef _WIN32
                                 if (directiveParts.size() == 3) { // File path had a drive letter e.g. C:
                                     directiveValue = directiveParts[1].trim() + ":" + directiveParts[2].trim();
-                                }
-                                lib->consoleLog(directiveValue.toStdString());
-                                auto file1 = File(directiveValue);
-                                Image image1 = ImageFileFormat::loadFrom(file1);
-                                if (image1.isValid()) lib->consoleLog("File 1 is valid");
-
-                                path = directiveValue.removeCharacters("\"");
-                                lib->consoleLog(path.toStdString());
-                                auto file2 = File(path);
-                                Image image2 = ImageFileFormat::loadFrom(file2);
-                                if (image2.isValid()) lib->consoleLog("File 2 is valid");
-
-                                path = path.replaceCharacters("\\","\\\\");
-                                lib->consoleLog(path.toStdString());
-                                auto file3 = File(path);
-                                Image image3 = ImageFileFormat::loadFrom(file3);
-                                if (image3.isValid()) lib->consoleLog("File 3 is valid");
-
-                                path = "C:\\Users\\Kieran\\Documents\\Gig Performer Song Lyrics-Chords\\rick-1.png";
-                                lib->consoleLog(path.toStdString());
-                                auto file4 = File(path);
-                                Image image4 = ImageFileFormat::loadFrom(file4);
-                                if (image4.isValid()) lib->consoleLog("File 4 is valid");
-                            #else
-                                path = directiveValue.removeCharacters("\"");
+                                }  
                             #endif
+                            String path = directiveValue.removeCharacters("\"");
                             auto file = File(path);
                             Image image = ImageFileFormat::loadFrom(file);
                             if (image.isValid()) {
-                                lib->consoleLog("Valid file");
                                 extension->chordProImagesCheckAndAdd(imageCount);
                                 extension->chordProImages[imageCount]->setImage(image);
                                 extension->chordProImages[imageCount]->setImagePlacement (RectanglePlacement (RectanglePlacement::fillDestination | RectanglePlacement::xLeft | RectanglePlacement::yTop));
