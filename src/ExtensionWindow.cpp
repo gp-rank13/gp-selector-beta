@@ -1161,6 +1161,9 @@ void ExtensionWindow::chordProProcessText(std::string text) {
                             extension->chordProLines[i]->getProperties().set("type", "image"); 
                             String path;
                             #ifdef _WIN32
+                                if (directiveParts.size() == 3) { // File path had a drive letter e.g. C:
+                                    directiveValue = directiveParts[1] + ":" + directiveParts[2];
+                                }
                                 lib->consoleLog(directiveValue.toStdString());
                                 path = directiveValue.removeCharacters("\"");
                                 lib->consoleLog(path.toStdString());
