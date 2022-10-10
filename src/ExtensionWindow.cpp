@@ -1182,7 +1182,8 @@ void ExtensionWindow::chordProProcessText(std::string text) {
                                 Image image3 = ImageFileFormat::loadFrom(file3);
                                 if (image3.isValid()) lib->consoleLog("File 3 is valid");
 
-                                path = " C:\\Users\\Kieran\\Documents\\Gig Performer Song Lyrics-Chords\\rick-1.png";
+                                path = "C:\\Users\\Kieran\\Documents\\Gig Performer Song Lyrics-Chords\\rick-1.png";
+                                lib->consoleLog(path.toStdString());
                                 auto file4 = File(path);
                                 Image image4 = ImageFileFormat::loadFrom(file4);
                                 if (image4.isValid()) lib->consoleLog("File 4 is valid");
