@@ -453,6 +453,8 @@ void ExtensionWindow::resized()
                     rowHeight = static_cast<int>(80.0 * chordProFontSize);
                 } else if (chordProLines[i]->getProperties()["type"] == "title") {
                     rowHeight = static_cast<int>(80.0 * chordProFontSize);
+                } else if (chordProLines[i]->getProperties()["type"] == "subtitle") {
+                    rowHeight = static_cast<int>(50.0 * chordProFontSize);
                 } else if (chordProLines[i]->getProperties()["type"] == "label") {
                     rowHeight = static_cast<int>(50.0 * chordProFontSize);
                 } else if (chordProLines[i]->getProperties()["type"] == "comment") {
@@ -918,7 +920,7 @@ void ExtensionWindow::buttonClicked (Button* buttonThatWasClicked)
         resized();
     } else if (buttonThatWasClicked == fullscreenActivateButton.get() || buttonThatWasClicked == fullscreenDeactivateButton.get()) {
         bool newFullscreenStatus = !extension->extensionWindow->isFullScreen();
-        #ifdef _WIN32
+        #if JUCE_WINDOWS
             newFullscreenStatus = !(Desktop::getInstance().getKioskModeComponent() == getTopLevelComponent());
             Desktop::getInstance().setKioskModeComponent(newFullscreenStatus ? getTopLevelComponent() : nullptr, false);
             if (!newFullscreenStatus) extension->extensionWindow->getPeer()->setIcon(getWindowIcon());
@@ -1159,7 +1161,7 @@ void ExtensionWindow::chordProProcessText(std::string text) {
                         extension->chordProLines[i]->getProperties().set("type", "label"); 
                     } else if (directiveName == "image") {
                             extension->chordProLines[i]->getProperties().set("type", "image");                             
-                            #ifdef _WIN32
+                            #if JUCE_WINDOWS
                                 if (directiveParts.size() == 3) { // File path had a drive letter e.g. C:
                                     directiveValue = directiveParts[1].trim() + ":" + directiveParts[2].trim();
                                 }  
@@ -1178,7 +1180,7 @@ void ExtensionWindow::chordProProcessText(std::string text) {
                             directiveValue = "";
                     } else {
                         extension->chordProLines[i]->setLookAndFeel(extension->chordProSubTitleLnF);
-                        extension->chordProLines[i]->getProperties().set("type", "subtitle"); 
+                        extension->chordProLines[i]->getProperties().set("type", "other"); 
                         directiveValue = directiveName.substring(0,1).toUpperCase() + directiveName.substring(1,directiveName.length()) + ": " + directiveValue;
                     } 
                 } else {
@@ -1242,7 +1244,7 @@ void ExtensionWindow::chordProReadFile(int index) {
         ss << homePath;
         ss >> s;
         chordProPath = s + LYRICS_CHORDS_PATH() + chordProFile;
-        #ifdef _WIN32
+        #if JUCE_WINDOWS
             String replaced = chordProPath;
             replaced = replaced.replaceCharacter('/', PATH_SEPARATOR());
             chordProPath = replaced.toStdString();

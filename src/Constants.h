@@ -5,7 +5,7 @@
 
 // Define the file separator (Windows vs Mac) to be used when reading the preferences file
 const inline char PATH_SEPARATOR() {
-    #ifdef _WIN32
+    #if JUCE_WINDOWS
         return '\\';
     #else
         return '/';
@@ -13,7 +13,7 @@ const inline char PATH_SEPARATOR() {
 }
 
 static std::string LYRICS_CHORDS_PATH() {
-    #ifdef _WIN32
+    #if JUCE_WINDOWS
         return "\\Documents\\Gig Performer Song Lyrics-Chords\\";
     #else
         return "/Documents/Gig Performer Song Lyrics-Chords/";
@@ -21,7 +21,7 @@ static std::string LYRICS_CHORDS_PATH() {
 }
 
 const inline char* ENVIRONMENT_VARIABLE() {
-    #ifdef _WIN32
+    #if JUCE_WINDOWS
         return "USERPROFILE";
     #else
         return "HOME";
