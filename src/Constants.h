@@ -12,21 +12,7 @@ const inline char PATH_SEPARATOR() {
     #endif
 }
 
-static std::string LYRICS_CHORDS_PATH() {
-    #if JUCE_WINDOWS
-        return "\\Documents\\Gig Performer Song Lyrics-Chords\\";
-    #else
-        return "/Documents/Gig Performer Song Lyrics-Chords/";
-    #endif
-}
-
-const inline char* ENVIRONMENT_VARIABLE() {
-    #if JUCE_WINDOWS
-        return "USERPROFILE";
-    #else
-        return "HOME";
-    #endif
-}
+static juce::String LYRICS_CHORDS_FOLDER = "Gig Performer Song Lyrics-Chords";
 
 // Window title bar and header labels
 const std::string RACKSPACE_TITLE = "Rackspaces";

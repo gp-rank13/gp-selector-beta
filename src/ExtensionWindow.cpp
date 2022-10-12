@@ -1228,29 +1228,26 @@ void ExtensionWindow::chordProProcessText(std::string text) {
 }
 
 void ExtensionWindow::chordProReadFile(int index) {
-    char *homePath;
-    std::string chordProPath;
     std::string chordProFileText;
     std::string chordProFile = lib->getChordProFilenameForSong(index);
     extension->chordProForCurrentSong = (chordProFile == "") ? false : true;
     extension->chordProDisplayGUI(extension->chordProForCurrentSong);
     if (!extension->chordProForCurrentSong) {
         extension->chordProReset();
-        return;
-    }
-    if ((homePath = getenv(ENVIRONMENT_VARIABLE())) != NULL) {
-        std::string s;
-        std::stringstream ss;
-        ss << homePath;
-        ss >> s;
-        chordProPath = s + LYRICS_CHORDS_PATH() + chordProFile;
+    } else {
+        String chordProPath = LYRICS_CHORDS_FOLDER + PATH_SEPARATOR() + chordProFile;
         #if JUCE_WINDOWS
-            String replaced = chordProPath;
-            replaced = replaced.replaceCharacter('/', PATH_SEPARATOR());
-            chordProPath = replaced.toStdString();
+            chordProPath = chordProPath.replaceCharacter('/', PATH_SEPARATOR());
         #endif
-        gigperformer::sdk::GPUtils::loadTextFile(chordProPath, chordProFileText);
-        chordProProcessText(chordProFileText);   
+        File chordProFullPath = File::getSpecialLocation(File::userDocumentsDirectory).getChildFile(chordProPath);
+        if (chordProFullPath.existsAsFile()) {
+            lib->consoleLog("File found: " + chordProFullPath.getFullPathName().toStdString());
+            gigperformer::sdk::GPUtils::loadTextFile(chordProFullPath.getFullPathName().toStdString(), chordProFileText);
+            chordProProcessText(chordProFileText);   
+        } else {
+            lib->consoleLog("File not found: " + chordProFullPath.getFullPathName().toStdString());
+            extension->chordProReset();
+        }
     }
 }
 
