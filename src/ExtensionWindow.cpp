@@ -1247,9 +1247,9 @@ void ExtensionWindow::chordProProcessText(std::string text) {
                                         for(int y=1; y<= image.getHeight(); y++) {
                                             for(int x=1; x<= image.getWidth(); x++) {
                                                 Colour col = image.getPixelAt(x,y);
-                                                uint r = 255 - col.getRed();
-                                                uint g = 255 - col.getGreen();
-                                                uint b = 255 - col.getBlue();
+                                                uint8 r = 255 - col.getRed();
+                                                uint8 g = 255 - col.getGreen();
+                                                uint8 b = 255 - col.getBlue();
                                                 newImage.setPixelAt(x, y, Colour::fromRGB(r,g,b));
                                             }   
                                         }
