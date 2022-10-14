@@ -167,6 +167,7 @@ void LibMain::OnSongChanged(int oldIndex, int newIndex) {
     if (newIndex >= 0 && inSetlistMode()) {
         ExtensionWindow::updateButtonNames(getSongNames());
         ExtensionWindow::chordProReadFile(newIndex);
+        setWidgetValue(WIDGET_CP_SCROLL, 0.0);
         if (!ExtensionWindow::isButtonSelected(newIndex)) { // If selected in GP directly, ensure buttons are in sync
             ExtensionWindow::selectButton(newIndex);
             ExtensionWindow::updateSubButtonNames(getSongPartNames(newIndex));
@@ -200,6 +201,7 @@ void LibMain::OnSetlistChanged(const std::string &newSetlistName) {
 void LibMain::OnModeChanged(int mode) {
     if (isGigFileLoading) return;
     readPreferencesFile("colors");
+    if (mode == GP_SetlistMode) setWidgetValue(WIDGET_CP_SCROLL, 0.0);
     ExtensionWindow::refreshUI();
 }
 
@@ -215,7 +217,7 @@ void LibMain::OnWidgetValueChanged(const std::string &widgetName, double newValu
             ExtensionWindow::scrollWindow(newValue);
     } else if (widgetName == WIDGET_CP_SCROLL) {
             ExtensionWindow::chordProScrollWindow(newValue);
-    }
+    } 
 }
 
 void LibMain::readPreferencesFile(std::string onlySection = "") {

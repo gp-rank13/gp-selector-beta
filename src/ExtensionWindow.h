@@ -142,6 +142,7 @@ public:
   void chordProDisplayGUI(bool display);
   void chordProSetColors();
   void chordProImagesCheckAndAdd(int index);
+  int chordProGetVisibleImageCount();
 
   static ExtensionWindow* extension;
   MyDraggableComponent draggableResizer;
@@ -165,7 +166,6 @@ public:
   SharedResourcePointer<popOverLabel>popOverLabelLnf;
 
  private:
-  TooltipWindow tooltipWindow;
   std::unique_ptr<MyDocumentWindow> extensionWindow;
   Viewport viewport;
   RightViewPort viewportRight;
@@ -184,6 +184,8 @@ public:
   bool displayRightPanel = false;
   bool displayWindowOnLoad = false;
   bool chordProForCurrentSong = false;
+  bool chordProImagesOnly = false;
+  bool chordProTwoColumns = false;
   std::unique_ptr<int> switchImmediately;
   int prevButtonSelected = 0;
   std::unique_ptr<Label> label;
@@ -200,7 +202,6 @@ public:
   std::unique_ptr<TextButton> fontDown;
   std::unique_ptr<TextButton> fontMono;
   std::unique_ptr<DynamicObject> preferences;
-  std::unique_ptr<juce::NamedValueSet> myVar;
   std::unique_ptr<ShapeButton> sidePanelOpenButton;
   std::unique_ptr<ShapeButton> sidePanelCloseButton;
   std::unique_ptr<ShapeButton> pinUnpinnedButton;
@@ -209,6 +210,11 @@ public:
   std::unique_ptr<ShapeButton> fullscreenDeactivateButton;
   std::unique_ptr<ShapeButton> fontButton;
   std::unique_ptr<ShapeButton> lightDarkModeButton;
+  std::unique_ptr<ShapeButton> columnsTwoButton;
+  std::unique_ptr<ShapeButton> columnsOneButton;
+
+
+
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ExtensionWindow)
 };
