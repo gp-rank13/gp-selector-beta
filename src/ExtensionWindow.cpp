@@ -10,7 +10,7 @@ LibMain* lib = new LibMain(nullptr);
 Colour chordProLyricColor = Colour::fromString(CP_DARK_LYRIC_COLOR);  
 Colour chordProChordColor = Colour::fromString(CP_DARK_CHORD_COLOR);
 bool chordProMonospaceFont = false;
-bool chordProDarkMode = true;
+bool chordProDarkMode = false;
 Colour viewPortBackground = Colour::fromString(BACKGROUND_COLOR);
 float chordProFontSize = CP_DEFAULT_FONT_SIZE;
 
@@ -201,6 +201,17 @@ ExtensionWindow::ExtensionWindow ()
     fontButtonContainer.addAndMakeVisible(fontMono.get());
     fontButtonContainer.addAndMakeVisible(fontPopOverLabel.get());
 
+    createInvertedImage.reset (new TextButton ("Create"));
+    createInvertedImage->setLookAndFeel(popOverLnf);
+    createInvertedImage->setButtonText ("Create");
+    createInvertedImage->addListener (this);  
+
+    missingImageLabel.reset (new Label ("missingImageLabel","No dark mode image"));
+    missingImageLabel->setLookAndFeel(popOverLabelLnf);
+
+    missingImageContainer.addAndMakeVisible(createInvertedImage.get());
+    missingImageContainer.addAndMakeVisible(missingImageLabel.get());
+
     for (int i = 0; i < DEFAULT_RACKSPACES_SONGS; ++i) {
         std::string number = std::to_string(i);
         std::string name = std::string(2 - number.length(), '0') + std::to_string(i); // Pad with leading zero
@@ -278,6 +289,7 @@ ExtensionWindow::ExtensionWindow ()
     addAndMakeVisible(viewportRight);
     addAndMakeVisible(draggableResizer);
     addAndMakeVisible(fontButtonContainer);
+    addAndMakeVisible(missingImageContainer);
     setSize (Rectangle<int>::fromString(DEFAULT_WINDOW_POSITION).getWidth(), 
              Rectangle<int>::fromString(DEFAULT_WINDOW_POSITION).getHeight()
             );
@@ -392,7 +404,7 @@ void ExtensionWindow::resized()
     clock->setBounds (getWidth()/2-50, 0, 100, 50);
     clock->setVisible(getWidth() > 450 && containerRight.isVisible() ? true : false);
     if (viewportRight.getWidth() <= 305 && viewportRight.isVisible()) fontButtonContainer.setVisible(false);
-
+    if (viewportRight.getWidth() <= 355 && viewportRight.isVisible()) missingImageContainer.setVisible(false);
     
     auto r = header->getBounds();
     if (sidePanelOpenButton->isVisible()) {
@@ -452,7 +464,8 @@ void ExtensionWindow::resized()
     container.setBounds(0, 50, juce::jmax (minWindowWidth-10, x - 10), (buttons[0]->getHeight() + padding) * rowCount );
     containerRight.setBounds(juce::jmax (minWindowWidth-10, x - 10), 50, getWidth()- juce::jmax (minWindowWidth, x), getHeight()-50);
     fontButtonContainer.setBounds(getWidth() - 300, HEADER_HEIGHT, 290, HEADER_HEIGHT);
- 
+    missingImageContainer.setBounds(getWidth() - 350, HEADER_HEIGHT, 340, HEADER_HEIGHT);
+
     viewport.setBounds(0, 50, juce::jmax (minWindowWidth, x), getHeight()-50);
     viewport.setViewPosition(viewPos);
     viewportRight.setBounds(juce::jmax (minWindowWidth, x), 50, getWidth() - juce::jmax (minWindowWidth, x), getHeight());
@@ -467,6 +480,9 @@ void ExtensionWindow::resized()
     fontMono->setBounds (200,5,80,HEADER_HEIGHT-10);
     fontPopOverLabel->setBounds (0, 0, 80, HEADER_HEIGHT);
 
+    missingImageLabel->setBounds (0, 0, 240, HEADER_HEIGHT);
+    createInvertedImage->setBounds (240, 5, 90, HEADER_HEIGHT-10);
+   
     draggableResizer.setVisible(displayRightPanel);
     viewportRight.setVisible(displayRightPanel);
 
@@ -477,7 +493,7 @@ void ExtensionWindow::resized()
         int imageCount = chordProGetVisibleImageCount();
 
         for (auto i = 0; i < chordProLines.size(); ++i) {
-            if (chordProLines[i]->isVisible() && !(chordProTwoColumns && chordProImagesOnly && chordProLines[i]->getProperties()["type"] == "")) {
+            if (chordProLines[i]->isVisible() && !(chordProImagesOnly && chordProLines[i]->getProperties()["type"] == "")) {
                 if (chordProLines[i]->getProperties()["type"] == "chordAndLyrics") {
                     rowHeight = 80.0 * chordProFontSize;
                 } else if (chordProLines[i]->getProperties()["type"] == "title") {
@@ -953,7 +969,7 @@ void ExtensionWindow::buttonClicked (Button* buttonThatWasClicked)
         extension->extensionWindow->setAlwaysOnTop(newPinnedStatus);
         if (newPinnedStatus) {
             Rectangle<int> window = getWindowPositionAndSize();
-            lib->consoleLog("Pinned GP Selector (x,y,w,h): " + std::to_string(window.getX()) + "," + std::to_string(window.getY()) + "," + std::to_string(window.getWidth()) + "," + std::to_string(window.getHeight()));
+            log("Pinned window (x,y,w,h): " + std::to_string(window.getX()) + "," + std::to_string(window.getY()) + "," + std::to_string(window.getWidth()) + "," + std::to_string(window.getHeight()));
         }
         resized();
     } else if (buttonThatWasClicked == fullscreenActivateButton.get() || buttonThatWasClicked == fullscreenDeactivateButton.get()) {
@@ -1057,10 +1073,7 @@ void ExtensionWindow::buttonClicked (Button* buttonThatWasClicked)
         extension->resized();
     } else if (buttonThatWasClicked == lightDarkModeButton.get()) {
         chordProDarkMode = !chordProDarkMode;
-        Point<int> viewRightPos = viewportRight.getViewPosition();
-        extension->chordProReadFile(lib->getCurrentSongIndex());
-        extension->chordProDisplayGUI(true);
-        viewportRight.setViewPosition(viewRightPos);
+        extension->chordProRefresh();
     } else if (buttonThatWasClicked == columnsOneButton.get()) {
         chordProTwoColumns = false;
         extension->columnsOneButton->setVisible(false);
@@ -1071,6 +1084,8 @@ void ExtensionWindow::buttonClicked (Button* buttonThatWasClicked)
         extension->columnsOneButton->setVisible(true);
         extension->columnsTwoButton->setVisible(false);
         extension->resized();
+    } else if (buttonThatWasClicked == createInvertedImage.get()) {
+        extension->chordProCreateInvertedImages();
     }
 }
 
@@ -1126,6 +1141,7 @@ void ExtensionWindow::processPreferencesDefaults(StringPairArray prefs) {
     setWindowPositionAndSize(positionSize[0].getIntValue(), positionSize[1].getIntValue(), positionSize[2].getIntValue(), positionSize[3].getIntValue());
     extension->preferences->setProperty("ThickBorders", prefs.getValue("ThickBorders", "") == "true" ? true : false);
     extension->preferences->setProperty("BorderColor", prefs.getValue("BorderColor", DEFAULT_BORDER_COLOR));
+    chordProDarkMode = prefs.getValue("ChordProDarkMode", "") == "true" ? true : false;
 }
 
 void ExtensionWindow::processPreferencesColors(StringPairArray prefs) {
@@ -1239,29 +1255,15 @@ void ExtensionWindow::chordProProcessText(std::string text) {
                                 extension->chordProImages[imageCount]->setImage(image);
                                 extension->chordProImages[imageCount]->setImagePlacement (RectanglePlacement (RectanglePlacement::fillDestination | RectanglePlacement::xLeft | RectanglePlacement::yTop));
                                 extension->chordProImages[imageCount]->setVisible(true);
+                                extension->chordProImages[imageCount]->getProperties().set("path", file.getFullPathName()); 
                                 extension->chordProLines[i]->getProperties().set("imageIndex", imageCount);
                                 imageCount++;
-                                if (createDarkMode) {
-                                    MessageManager::getInstance()->callAsync([image, fileDarkMode]() {
-                                        Image newImage = image;
-                                        for(int y=1; y<= image.getHeight(); y++) {
-                                            for(int x=1; x<= image.getWidth(); x++) {
-                                                Colour col = image.getPixelAt(x,y);
-                                                uint8 r = 255 - col.getRed();
-                                                uint8 g = 255 - col.getGreen();
-                                                uint8 b = 255 - col.getBlue();
-                                                newImage.setPixelAt(x, y, Colour::fromRGB(r,g,b));
-                                            }   
-                                        }
-                                        File outputFile = File(fileDarkMode);
-                                        auto destStream = outputFile.createOutputStream();
-                                        PNGImageFormat pngimage;
-                                        pngimage.writeImageToStream(newImage, *destStream);
-                                        extension->resized();
-                                    });
-                                }
+                            } else {
+                                extension->log("Image Not Found: " + file.getFullPathName());
+                                createDarkMode = false;
                             }
                             directiveValue = "";
+                            extension->missingImageContainer.setVisible(createDarkMode && extension->displayRightPanel);
                     } else {
                         extension->chordProLines[i]->setLookAndFeel(extension->chordProSubTitleLnF);
                         extension->chordProLines[i]->getProperties().set("type", "other"); 
@@ -1323,17 +1325,24 @@ void ExtensionWindow::chordProReadFile(int index) {
         extension->chordProDisplayGUI(false);
         extension->chordProReset();
     } else {
-        String chordProPath = LYRICS_CHORDS_FOLDER + PATH_SEPARATOR() + chordProFile;
-        File chordProFullPath = File::getSpecialLocation(File::userDocumentsDirectory).getChildFile(chordProPath);
+        File chordProFullPath = File(chordProFile);
         if (chordProFullPath.existsAsFile()) {
-            //lib->consoleLog("File found: " + chordProFullPath.getFullPathName().toStdString());
             gigperformer::sdk::GPUtils::loadTextFile(chordProFullPath.getFullPathName().toStdString(), chordProFileText);
             chordProProcessText(chordProFileText);   
         } else {
-            //lib->consoleLog("File not found: " + chordProFullPath.getFullPathName().toStdString());
+            extension->log("File not found: " + chordProFullPath.getFullPathName());
+            extension->chordProForCurrentSong = false;
+            extension->chordProDisplayGUI(false);
             extension->chordProReset();
         }
     }
+}
+
+void ExtensionWindow::chordProRefresh() {
+    Point<int> viewRightPos = viewportRight.getViewPosition();
+    extension->chordProReadFile(lib->getCurrentSongIndex());
+    extension->chordProDisplayGUI(true);
+    viewportRight.setViewPosition(viewRightPos);
 }
 
 void ExtensionWindow::chordProReset() {
@@ -1345,7 +1354,9 @@ void ExtensionWindow::chordProReset() {
     }
     for (int i = 0; i < extension->chordProImages.size(); ++i) { 
         extension->chordProImages[i]->setVisible(false);
+        extension->chordProImages[i]->getProperties().set("path", ""); 
     }
+    missingImageContainer.setVisible(false);
 }
 
 void ExtensionWindow::chordProScrollToSongPart(std::string songPartName) {
@@ -1370,6 +1381,7 @@ void ExtensionWindow::chordProDisplayGUI(bool display) {
         extension->viewportRight.setViewedComponent(&extension->chordProContainer, false);
         extension->chordProSetColors();
     } else {
+        missingImageContainer.setVisible(false);
         if (!chordProForCurrentSong) {
             extension->viewportRight.setViewedComponent(&extension->containerRight, false);
             viewPortBackground = Colour::fromString(BACKGROUND_COLOR);
@@ -1383,11 +1395,19 @@ void ExtensionWindow::chordProSetColors() {
     if (chordProDarkMode) {
         chordProLyricColor = Colour::fromString(extension->chordProColors.getValue("ChordProDarkModeColorsLyrics",CP_DARK_LYRIC_COLOR));
         chordProChordColor = Colour::fromString(extension->chordProColors.getValue("ChordProDarkModeColorsChords",CP_DARK_CHORD_COLOR));
-        viewPortBackground = Colour::fromString(extension->chordProColors.getValue("ChordProDarkModeColorsBackground",CP_DARK_BACKGROUND_COLOR));
+        if (chordProImagesOnly) {
+            viewPortBackground = Colour::fromString(CP_DARK_IMAGES_BACKGROUND_COLOR);
+        } else {
+            viewPortBackground = Colour::fromString(extension->chordProColors.getValue("ChordProDarkModeColorsBackground",CP_DARK_BACKGROUND_COLOR));
+        }
     } else {
         chordProLyricColor = Colour::fromString(extension->chordProColors.getValue("ChordProLightModeColorsLyrics",CP_LIGHT_LYRIC_COLOR));
         chordProChordColor = Colour::fromString(extension->chordProColors.getValue("ChordProLightModeColorsChords",CP_LIGHT_CHORD_COLOR));
-        viewPortBackground = Colour::fromString(extension->chordProColors.getValue("ChordProLightModeColorsBackground",CP_LIGHT_BACKGROUND_COLOR));
+        if (chordProImagesOnly) {
+            viewPortBackground = Colour::fromString(CP_LIGHT_IMAGES_BACKGROUND_COLOR);
+        } else {
+            viewPortBackground = Colour::fromString(extension->chordProColors.getValue("ChordProLightModeColorsBackground",CP_LIGHT_BACKGROUND_COLOR));
+        }
     }
 }
 
@@ -1412,6 +1432,47 @@ int ExtensionWindow::chordProGetVisibleImageCount() {
         }
     }
     return visible;
+}
+
+void ExtensionWindow::chordProCreateInvertedImages() {
+    extension->missingImageLabel->setText("Creating images...", dontSendNotification);
+    extension->resized();
+    MessageManager::getInstance()->callAsync([]() {
+        for (int i = 0; i < extension->chordProImages.size(); ++i) { 
+            if (extension->chordProImages[i]->isVisible()) {
+                String path = extension->chordProImages[i]->getProperties()["path"];
+                if (!path.contains("-DarkMode")) {
+                    File file = File(path);
+                    Image image = ImageFileFormat::loadFrom(file);
+                    if (image.isValid()) {
+                        for(int y = 1; y <= image.getHeight(); y++) {
+                            for(int x = 1; x <= image.getWidth(); x++) {
+                                Colour col = image.getPixelAt(x, y);
+                                uint8 r = 255 - col.getRed();
+                                uint8 g = 255 - col.getGreen();
+                                uint8 b = 255 - col.getBlue();
+                                image.setPixelAt(x, y, Colour::fromRGB(r, g, b));
+                            }   
+                        }
+                        String pathDarkMode = file.getFileNameWithoutExtension() + "-DarkMode" + file.getFileExtension();
+                        File fileDarkMode = file.getParentDirectory().getChildFile(pathDarkMode);
+                        auto destStream = fileDarkMode.createOutputStream();
+                        PNGImageFormat pngimage;
+                        pngimage.writeImageToStream(image, *destStream);
+                        extension->chordProImages[i]->setImage(image);
+                        extension->chordProImages[i]->getProperties().set("path", fileDarkMode.getFullPathName()); 
+                        extension->missingImageContainer.setVisible(false);
+                    }
+                }
+            }
+        }
+        extension->resized();
+        extension->missingImageLabel->setText("No dark mode image", dontSendNotification);
+    });
+}
+
+void ExtensionWindow::log(String text) {
+    lib->consoleLog(LOG_PREFIX + text.toStdString());
 }
 
 void MyDocumentWindow::closeButtonPressed () { 

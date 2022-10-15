@@ -137,7 +137,6 @@ public:
   void static chordProScrollWindow(double value);
   void static chordProProcessText(std::string text);
   void static chordProReadFile(int index);
-  void chordProReset();
   void static chordProScrollToSongPart(std::string text);
   void chordProDisplayGUI(bool display);
   void chordProSetColors();
@@ -166,6 +165,11 @@ public:
   SharedResourcePointer<popOverLabel>popOverLabelLnf;
 
  private:
+  void log(String text);
+  void chordProCreateInvertedImages();
+  void chordProRefresh();
+  void chordProReset();
+
   std::unique_ptr<MyDocumentWindow> extensionWindow;
   Viewport viewport;
   RightViewPort viewportRight;
@@ -173,6 +177,7 @@ public:
   Component containerRight;
   Component chordProContainer;
   PopOver fontButtonContainer;
+  PopOver missingImageContainer;
   OwnedArray<TextButton> buttons;
   OwnedArray<TextButton> subButtons;
   OwnedArray<Label> chordProLines;
@@ -193,6 +198,7 @@ public:
   std::unique_ptr<Label> header;
   std::unique_ptr<Label> clock;
   std::unique_ptr<Label> fontPopOverLabel;
+  std::unique_ptr<Label> missingImageLabel;
   std::unique_ptr<TextButton> btnClear;
   std::unique_ptr<TextButton> btnCurrent;
   std::unique_ptr<TextButton> btnPrev;
@@ -201,6 +207,7 @@ public:
   std::unique_ptr<TextButton> fontUp;
   std::unique_ptr<TextButton> fontDown;
   std::unique_ptr<TextButton> fontMono;
+  std::unique_ptr<TextButton> createInvertedImage;
   std::unique_ptr<DynamicObject> preferences;
   std::unique_ptr<ShapeButton> sidePanelOpenButton;
   std::unique_ptr<ShapeButton> sidePanelCloseButton;

@@ -491,8 +491,8 @@ public:
   void drawButtonText (Graphics& g, TextButton& button,
 		bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown)
 	{
-		Font font (button.getHeight() * ((button.getName() == "Mono") ? 0.5 : 0.9));
-    auto height = ((button.getName() == "Mono") ? button.getHeight() : button.getHeight() * 0.85);
+		Font font (button.getHeight() * ((button.getName() == "Mono" || button.getName() == "Create") ? 0.5 : 0.9));
+    auto height = ((button.getName() == "Mono" || button.getName() == "Create") ? button.getHeight() : button.getHeight() * 0.85);
 		g.setFont (font);
 		g.setColour (Colours::white);
     g.drawFittedText (button.getButtonText(),
