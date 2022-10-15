@@ -62,7 +62,7 @@ const juce::String CP_LIGHT_BACKGROUND_COLOR = "FFFFFFFF";
 const juce::String CP_LIGHT_IMAGES_BACKGROUND_COLOR = "FFF0F0F0";
 const juce::String CP_DARK_LYRIC_COLOR = "FFFFFFFF";
 const juce::String CP_DARK_CHORD_COLOR = "FFFDFB00";
-const juce::String CP_DARK_BACKGROUND_COLOR = "FF202020";
+const juce::String CP_DARK_BACKGROUND_COLOR = "FF000000";
 const juce::String CP_DARK_IMAGES_BACKGROUND_COLOR = BACKGROUND_COLOR;
 
 const std::vector<std::string> NOTES_SHARP = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};

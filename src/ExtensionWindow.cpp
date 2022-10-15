@@ -1435,7 +1435,9 @@ int ExtensionWindow::chordProGetVisibleImageCount() {
 }
 
 void ExtensionWindow::chordProCreateInvertedImages() {
-    extension->missingImageLabel->setText("Creating images...", dontSendNotification);
+    extension->missingImageLabel->setText("Creating images...", sendNotificationSync);
+    extension->missingImageContainer.setVisible(false);
+    extension->missingImageContainer.setVisible(true);
     extension->resized();
     MessageManager::getInstance()->callAsync([]() {
         for (int i = 0; i < extension->chordProImages.size(); ++i) { 
@@ -1467,6 +1469,7 @@ void ExtensionWindow::chordProCreateInvertedImages() {
             }
         }
         extension->resized();
+        extension->missingImageContainer.setVisible(false);
         extension->missingImageLabel->setText("No dark mode image", dontSendNotification);
     });
 }
