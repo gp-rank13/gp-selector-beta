@@ -9,6 +9,7 @@ using namespace juce;
 extern Colour chordProLyricColor;
 extern Colour chordProChordColor;
 extern bool chordProMonospaceFont;
+extern String songLabel;
 
 class buttonLookAndFeel : public LookAndFeel_V4 {
 public:
@@ -250,7 +251,7 @@ public:
     auto labelArea = label.getLocalBounds();
     g.setFont (Font (25.00f, Font::plain).withTypefaceStyle ("Regular"));
     g.setColour (Colours::white);
-    g.drawFittedText ("Songs",
+    g.drawFittedText (label.getText(),
 				15, 0, label.getWidth(), label.getHeight (),
 				Justification::centredLeft, 1, 1.0f);
   }

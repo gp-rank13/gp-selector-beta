@@ -65,6 +65,10 @@ const juce::String CP_DARK_CHORD_COLOR = "FFFDFB00";
 const juce::String CP_DARK_BACKGROUND_COLOR = "FF000000";
 const juce::String CP_DARK_IMAGES_BACKGROUND_COLOR = BACKGROUND_COLOR;
 
+const juce::String CP_DARK_MODE_FILE_SUFFIX = "-DarkMode";
+const juce::String CP_NO_DARK_MODE_IMAGES = "No dark mode image";
+const juce::String CP_DARK_MODE_IMAGE_PROCESSING = "Creating image...";
+
 const std::vector<std::string> NOTES_SHARP = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
 const std::vector<std::string> NOTES_FLAT = {"C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"};
 

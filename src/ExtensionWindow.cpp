@@ -28,19 +28,13 @@ ExtensionWindow::ExtensionWindow ()
     preferences->setProperty("RemoveColorKeywordFromName", false);
     preferences->setProperty("ThickBorders", false);
 
-    header.reset (new Label ("header", ""));
+    header.reset (new Label ("header", SONG_TITLE));
     addAndMakeVisible (header.get());
     header->setEditable (false, false, false);
     header->setBounds (0, 0, getWidth(), 50);
+    header->setFont (Font (25.00f, Font::plain).withTypefaceStyle ("Regular"));
     header->setLookAndFeel(headerRackspacesLnF);
     
-    label.reset (new Label ("title", ""));
-    addAndMakeVisible (label.get());
-    label->setFont (Font (25.00f, Font::plain).withTypefaceStyle ("Regular"));
-    label->setJustificationType (Justification::centredLeft);
-    label->setEditable (false, false, false);
-    label->setBounds (15, 10, 336, 25);
-
     highlight.reset (new Label ("subButtonHighlight", ""));
     highlight->setEditable (false, false, false);
     highlight->setLookAndFeel(highlightLnF);
@@ -155,6 +149,24 @@ ExtensionWindow::ExtensionWindow ()
     addAndMakeVisible (columnsOneButton.get());
     columnsOneButton->setVisible(false);
 
+    Path p11;
+    p11.loadPathFromData (fitWidthPathData, sizeof (fitWidthPathData));
+    fitWidthButton.reset (new ShapeButton ( "fitWidthButton", Colours::white, Colours::lightgrey, Colours::white ));
+    fitWidthButton->setShape (p11, true, true, false);
+    fitWidthButton->setTooltip("Fit to window width");
+    fitWidthButton->addListener (this);
+    addAndMakeVisible (fitWidthButton.get());
+    fitWidthButton->setVisible(false);   
+
+    Path p12;
+    p12.loadPathFromData (fitHeightPathData, sizeof (fitHeightPathData));
+    fitHeightButton.reset (new ShapeButton ( "fitHeightButton", Colours::white, Colours::lightgrey, Colours::white ));
+    fitHeightButton->setShape (p12, true, true, false);
+    fitHeightButton->setTooltip("Fit to window height");
+    fitHeightButton->addListener (this);
+    addAndMakeVisible (fitHeightButton.get());
+    fitHeightButton->setVisible(false);
+
     btnCurrent.reset (new TextButton ("btnCurrent"));
     btnCurrent->setLookAndFeel(minimalistSongLnF);
     btnCurrent->setButtonText ("");
@@ -206,7 +218,7 @@ ExtensionWindow::ExtensionWindow ()
     createInvertedImage->setButtonText ("Create");
     createInvertedImage->addListener (this);  
 
-    missingImageLabel.reset (new Label ("missingImageLabel","No dark mode image"));
+    missingImageLabel.reset (new Label ("missingImageLabel",CP_NO_DARK_MODE_IMAGES));
     missingImageLabel->setLookAndFeel(popOverLabelLnf);
 
     missingImageContainer.addAndMakeVisible(createInvertedImage.get());
@@ -310,10 +322,8 @@ ExtensionWindow::ExtensionWindow ()
 
 ExtensionWindow::~ExtensionWindow()
 {
-    label = nullptr;
-    btnClear = nullptr;
-    setLookAndFeel (nullptr);
     clockTimer.stopTimer();
+    refreshTimer.stopTimer();
 }
 
 void ExtensionWindow::paint (Graphics& g)
@@ -344,20 +354,13 @@ Image ExtensionWindow::getWindowIcon() {
 
 void ExtensionWindow::resized()
 {
-    int minWindowWidth = 180;
+    int minWindowWidth = displayRightPanel ? 0 : 180;
     int minButtonHeight = 50;
     int largeScrollAreaWidth = 50;
     Point<int> viewPos = viewport.getViewPosition();
     Point<int> viewRightPos = viewportRight.getViewPosition();
     int columns = 1;
     int buttonHeightRatio = 5; // Ratio of width:height
-    auto& lnf = buttons[0]->getLookAndFeel();
-    std::string lnfName = typeid(lnf).name();
-    if (lnfName == typeid(gridButtonLookAndFeel).name()) {
-        columns = 2;
-        buttonHeightRatio = 3;
-    }
-
     auto bounds = container.getBounds();
     bool largeScrollArea = preferences->getProperty("LargeScrollArea");
     auto buttonSize = (largeScrollArea) ? bounds.getWidth() - largeScrollAreaWidth : bounds.getWidth();
@@ -365,7 +368,7 @@ void ExtensionWindow::resized()
     float padding = buttonHeight * 0.1;
     float rowHeight = 0.0;
     auto x = draggableResizer.getX();
-
+    
     if (!displayRightPanel) {
        x = getWidth();
     }
@@ -374,14 +377,14 @@ void ExtensionWindow::resized()
     int buttonDisplayCount = 0;
     for (int i = 0; i < buttons.size(); ++i) {
         if (buttons[i]->isVisible()) {
-            ++buttonDisplayCount;
+            buttonDisplayCount++;
         }
     }
 
     int subButtonDisplayCount = 0;
     for (size_t i = 0; i < subButtons.size(); ++i) {
         if (subButtons[i]->isVisible()) {
-            ++subButtonDisplayCount;
+            subButtonDisplayCount++;
         }
     }
 
@@ -400,9 +403,13 @@ void ExtensionWindow::resized()
     rows = rows + 0.5 - (rows < 0); 
     int rowCount = (int)rows;
 
+    String headerLabel = header->getText();
+    Font headerLabelFont = header->getFont();
+    int headerLabelWidth = headerLabelFont.getStringWidth(headerLabel);
     header->setBounds (0, 0, getWidth(), 50);
     clock->setBounds (getWidth()/2-50, 0, 100, 50);
-    clock->setVisible(getWidth() > 450 && containerRight.isVisible() ? true : false);
+    clock->setVisible(getWidth() > 460 && clock->getX() > headerLabelWidth && containerRight.isVisible() ? true : false);
+    if (chordProImagesOnly && getWidth() < 560) clock->setVisible(false);
     if (viewportRight.getWidth() <= 305 && viewportRight.isVisible()) fontButtonContainer.setVisible(false);
     if (viewportRight.getWidth() <= 355 && viewportRight.isVisible()) missingImageContainer.setVisible(false);
     
@@ -426,13 +433,25 @@ void ExtensionWindow::resized()
             fullscreenDeactivateButton->setBounds(r.removeFromRight(48).withSizeKeepingCentre (25, 25));
         }
         lightDarkModeButton->setBounds (r.removeFromRight (45).withSizeKeepingCentre (27, 27));
-        if (!chordProImagesOnly) {
+        lightDarkModeButton->setVisible(chordProForCurrentSong && lightDarkModeButton->getX() > headerLabelWidth + 20);
+        if (!chordProImagesOnly && chordProForCurrentSong) {
             fontButton->setBounds (r.removeFromRight (45).withSizeKeepingCentre (27, 27));
+            fontButton->setVisible(fontButton->getX() > headerLabelWidth + 20);
+
         }
         if (chordProTwoColumns) {
             columnsOneButton->setBounds (r.removeFromRight (45).withSizeKeepingCentre (27, 27));
+            columnsOneButton->setVisible(chordProImagesOnly && columnsOneButton->getX() > headerLabelWidth + 20);
         } else {
             columnsTwoButton->setBounds (r.removeFromRight (45).withSizeKeepingCentre (27, 27));
+            columnsTwoButton->setVisible(chordProImagesOnly && columnsTwoButton->getX() > headerLabelWidth + 20);
+        }
+        if (fitHeight) {
+            fitWidthButton->setBounds (r.removeFromRight (45).withSizeKeepingCentre (27, 27));
+            fitWidthButton->setVisible(chordProImagesOnly && fitWidthButton->getX() > headerLabelWidth + 20);
+        } else {
+            fitHeightButton->setBounds (r.removeFromRight (45).withSizeKeepingCentre (27, 27));
+            fitHeightButton->setVisible(chordProImagesOnly && fitHeightButton->getX() > headerLabelWidth + 20);
         }
     }
     
@@ -461,7 +480,7 @@ void ExtensionWindow::resized()
         }
     }
 
-    container.setBounds(0, 50, juce::jmax (minWindowWidth-10, x - 10), (buttons[0]->getHeight() + padding) * rowCount );
+    container.setBounds(0, 50, juce::jmax (minWindowWidth-10, x - 10), (buttonHeight * rowCount) + padding);
     containerRight.setBounds(juce::jmax (minWindowWidth-10, x - 10), 50, getWidth()- juce::jmax (minWindowWidth, x), getHeight()-50);
     fontButtonContainer.setBounds(getWidth() - 300, HEADER_HEIGHT, 290, HEADER_HEIGHT);
     missingImageContainer.setBounds(getWidth() - 350, HEADER_HEIGHT, 340, HEADER_HEIGHT);
@@ -516,11 +535,20 @@ void ExtensionWindow::resized()
                         float newWidth = (float)(viewportRight.getWidth() - 10) / columns;
                         if (chordProTwoColumns && chordProImagesOnly) newWidth = newWidth - (padding / 2.0);
                         float newHeight = originalHeight / (ratio * columns);
+                        int imageX = 0;
+                        if (fitHeight && chordProImagesOnly) {
+                            newHeight = (float)(viewportRight.getHeight() - 50);
+                            newWidth = originalWidth / originalHeight * newHeight;
+                            imageX = juce::jmax(0, (int)((viewportRight.getWidth() - newWidth) / 2));
+                            if (chordProTwoColumns) imageX = juce::jmax(0, (int)((viewportRight.getWidth() - (newWidth * columns)) / 2));
+                        }
                         rowHeight = newHeight; 
-                        if (chordProTwoColumns && chordProImagesOnly) {
+                        if (chordProTwoColumns && chordProImagesOnly & !fitHeight) {
                             extension->chordProImages[imageIndex]->setBounds((imageIndex % 2 == 0) ? 0 : newWidth + padding , runningHeight, truncatePositiveToUnsignedInt(newWidth), rowHeight);
+                        } else if (chordProTwoColumns && chordProImagesOnly && fitHeight) {
+                            extension->chordProImages[imageIndex]->setBounds((imageIndex % 2 == 0) ? imageX : imageX + newWidth + padding, runningHeight, truncatePositiveToUnsignedInt(newWidth), rowHeight);
                         } else {
-                            extension->chordProImages[imageIndex]->setBounds(0, runningHeight, truncatePositiveToUnsignedInt(newWidth), rowHeight);
+                            extension->chordProImages[imageIndex]->setBounds(imageX, runningHeight, truncatePositiveToUnsignedInt(newWidth), rowHeight);
                         }
                         rowHeight = (chordProTwoColumns && chordProImagesOnly && imageIndex % 2 == 0 && imageIndex < imageCount - 1) ? 0 : rowHeight + padding;
                     }
@@ -947,6 +975,7 @@ void ExtensionWindow::buttonClicked (Button* buttonThatWasClicked)
             fullscreenActivateButton->setVisible(false);
             extension->chordProDisplayGUI(false);
             clock->setVisible(false);
+            extension->header->setText(SONG_TITLE, dontSendNotification);
         }
         resized();
       
@@ -1070,10 +1099,11 @@ void ExtensionWindow::buttonClicked (Button* buttonThatWasClicked)
         extension->resized();
     } else if (buttonThatWasClicked == fontButton.get()) {
         fontButtonContainer.setVisible(!fontButtonContainer.isVisible());
-        extension->resized();
+        repaint();
     } else if (buttonThatWasClicked == lightDarkModeButton.get()) {
         chordProDarkMode = !chordProDarkMode;
         extension->chordProRefresh();
+        repaint();
     } else if (buttonThatWasClicked == columnsOneButton.get()) {
         chordProTwoColumns = false;
         extension->columnsOneButton->setVisible(false);
@@ -1084,8 +1114,21 @@ void ExtensionWindow::buttonClicked (Button* buttonThatWasClicked)
         extension->columnsOneButton->setVisible(true);
         extension->columnsTwoButton->setVisible(false);
         extension->resized();
+    } else if (buttonThatWasClicked == fitWidthButton.get()) {
+        fitHeight = false;
+        extension->fitWidthButton->setVisible(false);
+        extension->fitHeightButton->setVisible(true);
+        extension->resized();
+    }  else if (buttonThatWasClicked == fitHeightButton.get()) {
+        fitHeight = true;
+        extension->fitWidthButton->setVisible(true);
+        extension->fitHeightButton->setVisible(false);
+        extension->resized();
     } else if (buttonThatWasClicked == createInvertedImage.get()) {
-        extension->chordProCreateInvertedImages();
+        extension->missingImageLabel->setText(CP_DARK_MODE_IMAGE_PROCESSING, dontSendNotification);
+        createInvertedImage->setVisible(false);
+        extension->repaint();
+        imageTimer.startTimer(300);
     }
 }
 
@@ -1240,7 +1283,7 @@ void ExtensionWindow::chordProProcessText(std::string text) {
                             Image image;
                             bool createDarkMode = false;
                             if (chordProDarkMode) {
-                                pathDarkMode = file.getFileNameWithoutExtension() + "-DarkMode" + file.getFileExtension();
+                                pathDarkMode = file.getFileNameWithoutExtension() + CP_DARK_MODE_FILE_SUFFIX + file.getFileExtension();
                                 fileDarkMode = file.getParentDirectory().getChildFile(pathDarkMode);
                                 image = ImageFileFormat::loadFrom(fileDarkMode);
                                 if (!image.isValid()) {
@@ -1376,6 +1419,9 @@ void ExtensionWindow::chordProDisplayGUI(bool display) {
     lightDarkModeButton->setVisible(display && displayRightPanel);
     columnsOneButton->setVisible(display && displayRightPanel && chordProImagesOnly && chordProTwoColumns);
     columnsTwoButton->setVisible(display && displayRightPanel && chordProImagesOnly && !chordProTwoColumns);
+    fitWidthButton->setVisible(display && displayRightPanel && chordProImagesOnly && fitHeight);
+    fitHeightButton->setVisible(display && displayRightPanel && chordProImagesOnly && !fitHeight);
+
     fontButtonContainer.setVisible(false);
     if (display) { 
         extension->viewportRight.setViewedComponent(&extension->chordProContainer, false);
@@ -1435,20 +1481,16 @@ int ExtensionWindow::chordProGetVisibleImageCount() {
 }
 
 void ExtensionWindow::chordProCreateInvertedImages() {
-    extension->missingImageLabel->setText("Creating images...", sendNotificationSync);
-    extension->missingImageContainer.setVisible(false);
-    extension->missingImageContainer.setVisible(true);
-    extension->resized();
     MessageManager::getInstance()->callAsync([]() {
         for (int i = 0; i < extension->chordProImages.size(); ++i) { 
             if (extension->chordProImages[i]->isVisible()) {
                 String path = extension->chordProImages[i]->getProperties()["path"];
-                if (!path.contains("-DarkMode")) {
+                if (!path.contains(CP_DARK_MODE_FILE_SUFFIX)) {
                     File file = File(path);
                     Image image = ImageFileFormat::loadFrom(file);
                     if (image.isValid()) {
-                        for(int y = 1; y <= image.getHeight(); y++) {
-                            for(int x = 1; x <= image.getWidth(); x++) {
+                        for(int y = 0; y < image.getHeight(); y++) {
+                            for(int x = 0; x < image.getWidth(); x++) {
                                 Colour col = image.getPixelAt(x, y);
                                 uint8 r = 255 - col.getRed();
                                 uint8 g = 255 - col.getGreen();
@@ -1456,26 +1498,43 @@ void ExtensionWindow::chordProCreateInvertedImages() {
                                 image.setPixelAt(x, y, Colour::fromRGB(r, g, b));
                             }   
                         }
-                        String pathDarkMode = file.getFileNameWithoutExtension() + "-DarkMode" + file.getFileExtension();
+                        image = image.getClippedImage(image.getBounds().withTrimmedTop(1));
+                        String pathDarkMode = file.getFileNameWithoutExtension() + CP_DARK_MODE_FILE_SUFFIX + file.getFileExtension();
                         File fileDarkMode = file.getParentDirectory().getChildFile(pathDarkMode);
                         auto destStream = fileDarkMode.createOutputStream();
                         PNGImageFormat pngimage;
                         pngimage.writeImageToStream(image, *destStream);
                         extension->chordProImages[i]->setImage(image);
                         extension->chordProImages[i]->getProperties().set("path", fileDarkMode.getFullPathName()); 
-                        extension->missingImageContainer.setVisible(false);
                     }
                 }
             }
         }
-        extension->resized();
         extension->missingImageContainer.setVisible(false);
-        extension->missingImageLabel->setText("No dark mode image", dontSendNotification);
+        extension->missingImageLabel->setText(CP_NO_DARK_MODE_IMAGES, dontSendNotification);
+        extension->createInvertedImage->setVisible(true);
     });
 }
 
 void ExtensionWindow::log(String text) {
     lib->consoleLog(LOG_PREFIX + text.toStdString());
+}
+
+void ExtensionWindow::setSongLabel() {
+    if (!lib->inSetlistMode()) return;
+    int divider = extension->draggableResizer.getX();
+    if (divider <= 10) {
+        std::string songName = lib->getSongName(lib->getCurrentSongIndex());
+        if (extension->header->getText().toStdString() != songName) {
+            extension->header->setText(songName, dontSendNotification);
+            extension->resized();
+        }
+    } else {
+        if (extension->header->getText().toStdString() != SONG_TITLE) {
+             extension->header->setText(SONG_TITLE, dontSendNotification);
+             extension->resized();
+        }
+    }
 }
 
 void MyDocumentWindow::closeButtonPressed () { 
@@ -1489,6 +1548,10 @@ void ClockTimer::timerCallback() {
 void RefreshTimer::timerCallback() {
     ExtensionWindow::compareButtonNames(lib->inSetlistMode() ? lib->getSongNames() : lib->getRackspaceNames());
     ExtensionWindow::compareSubButtonNames(lib->inSetlistMode() ? lib->getSongPartNames(ExtensionWindow::getButtonSelected()) : lib->getVariationNames(ExtensionWindow::getButtonSelected()));
+    ExtensionWindow::setSongLabel();
 }
 
-
+void CreateImageTimer::timerCallback() {
+    ExtensionWindow::chordProCreateInvertedImages();
+    this->stopTimer();
+}

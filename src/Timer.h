@@ -14,3 +14,9 @@ class RefreshTimer : public Timer
 public:
     void timerCallback() override;
 };
+
+class CreateImageTimer : public Timer
+{
+public:
+    void timerCallback() override;
+};

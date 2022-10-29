@@ -128,6 +128,7 @@ public:
   void static refreshUI();
   void static updateButtonLnF(std::string LnFname);
   void static setWindowPositionAndSize(int x, int y, int w, int h);
+  void static setSongLabel();
   Rectangle<int> getWindowPositionAndSize();
   Image static getWindowIcon();
   void mouseDrag (const MouseEvent& e) override
@@ -142,6 +143,7 @@ public:
   void chordProSetColors();
   void chordProImagesCheckAndAdd(int index);
   int chordProGetVisibleImageCount();
+  void static chordProCreateInvertedImages();
 
   static ExtensionWindow* extension;
   MyDraggableComponent draggableResizer;
@@ -166,11 +168,12 @@ public:
 
  private:
   void log(String text);
-  void chordProCreateInvertedImages();
+
   void chordProRefresh();
   void chordProReset();
 
   std::unique_ptr<MyDocumentWindow> extensionWindow;
+  TooltipWindow tooltipWindow;
   Viewport viewport;
   RightViewPort viewportRight;
   Component container;
@@ -186,20 +189,20 @@ public:
   StringPairArray chordProColors;
   ClockTimer clockTimer;
   RefreshTimer refreshTimer;
+  CreateImageTimer imageTimer;
   bool displayRightPanel = false;
   bool displayWindowOnLoad = false;
   bool chordProForCurrentSong = false;
   bool chordProImagesOnly = false;
   bool chordProTwoColumns = false;
+  bool fitHeight = false;
   std::unique_ptr<int> switchImmediately;
   int prevButtonSelected = 0;
-  std::unique_ptr<Label> label;
   std::unique_ptr<Label> highlight;
   std::unique_ptr<Label> header;
   std::unique_ptr<Label> clock;
   std::unique_ptr<Label> fontPopOverLabel;
   std::unique_ptr<Label> missingImageLabel;
-  std::unique_ptr<TextButton> btnClear;
   std::unique_ptr<TextButton> btnCurrent;
   std::unique_ptr<TextButton> btnPrev;
   std::unique_ptr<TextButton> btnNext;
@@ -219,7 +222,8 @@ public:
   std::unique_ptr<ShapeButton> lightDarkModeButton;
   std::unique_ptr<ShapeButton> columnsTwoButton;
   std::unique_ptr<ShapeButton> columnsOneButton;
-
+  std::unique_ptr<ShapeButton> fitWidthButton;
+  std::unique_ptr<ShapeButton> fitHeightButton;
 
 
 
