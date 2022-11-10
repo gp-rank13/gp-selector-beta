@@ -13,8 +13,7 @@ extern String songLabel;
 
 class buttonLookAndFeel : public LookAndFeel_V4 {
 public:
-	void drawButtonText (Graphics& g, TextButton& button,
-		bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown)
+	void drawButtonText (Graphics& g, TextButton& button,	bool, bool)
 	{
 		Font font (button.getHeight () * 0.25f);
 		g.setFont (font);
@@ -48,7 +47,7 @@ public:
       Justification::left, rows, 1.0f);
 	}
 
-  void drawButtonBackground (juce::Graphics& g, juce::Button& button, const juce::Colour& backgroundColour,
+  void drawButtonBackground (juce::Graphics& g, juce::Button& button, const juce::Colour&,
                               bool isButtonHighlighted, bool isButtonDown) {
     auto buttonArea = button.getLocalBounds().toFloat();
     float borderSize = buttonArea.getHeight() * ((button.getProperties()["thickBorder"]) ? 0.08 : 0.04);
@@ -75,8 +74,7 @@ public:
 
 class subButtonLookAndFeel : public LookAndFeel_V4 {
 public:
-	void drawButtonText (Graphics& g, TextButton& button,
-		bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown)
+	void drawButtonText (Graphics& g, TextButton& button,	bool, bool)
 	{
 		Font font (button.getHeight () * 0.25f);
 		g.setFont (font);
@@ -100,7 +98,7 @@ public:
       Justification::left, 1, 1.0f);
 	}
 
-  void drawButtonBackground (juce::Graphics& g, juce::Button& button, const juce::Colour& backgroundColour,
+  void drawButtonBackground (juce::Graphics& g, juce::Button& button, const juce::Colour&,
                               bool isButtonHighlighted, bool isButtonDown) {
     auto buttonArea = button.getLocalBounds().toFloat();
     auto highlightArea = button.getLocalBounds().toFloat();;
@@ -146,7 +144,7 @@ public:
 class subButtonHighlightLookAndFeel : public LookAndFeel_V4 {
 public:
   void drawLabel (Graphics& g, Label& label) {
-    auto labelArea = label.getLocalBounds().toFloat();
+    //auto labelArea = label.getLocalBounds().toFloat();
     auto highlightArea = label.getLocalBounds().toFloat();
     auto padding = (float)label.getProperties()["buttonHeight"] * 0.3;
     float cornerSize = 5.f;
@@ -159,17 +157,14 @@ public:
 
 class blankButtonLookAndFeel : public LookAndFeel_V4 {
 public:
-	void drawButtonText (Graphics& g, TextButton& button,
-		bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown) {};
-
-  void drawButtonBackground (juce::Graphics& g, juce::Button& button, const juce::Colour& backgroundColour,
-                               bool isButtonHighlighted, bool isButtonDown) {};
+	void drawButtonText (Graphics&, TextButton&, bool, bool) {};
+  void drawButtonBackground (juce::Graphics&, juce::Button&, const juce::Colour&, bool, bool) {};
 };
 
 class gridButtonLookAndFeel : public LookAndFeel_V4 {
 public:
 	void drawButtonText (Graphics& g, TextButton& button,
-		bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown)
+		bool, bool)
 	{
 		Font font (button.getHeight () * 0.25f);
 		g.setFont (font);
@@ -205,7 +200,7 @@ public:
     }
 	}
 
-  void drawButtonBackground (juce::Graphics& g, juce::Button& button, const juce::Colour& backgroundColour,
+  void drawButtonBackground (juce::Graphics& g, juce::Button& button, const juce::Colour&,
                               bool isButtonHighlighted, bool isButtonDown) {
     auto buttonArea = button.getLocalBounds().toFloat().reduced (0.5f);
     float cornerSize = 5.f;
@@ -235,7 +230,7 @@ public:
 class headerLookAndFeel : public LookAndFeel_V4 {
 public:
   void drawLabel (Graphics& g, Label& label) {
-    auto labelArea = label.getLocalBounds();
+    //auto labelArea = label.getLocalBounds();
     g.setFont (Font (25.00f, Font::plain).withTypefaceStyle ("Regular"));
     g.setColour (Colours::white);
     g.drawFittedText (label.getText(),
@@ -248,7 +243,7 @@ class headerSongs : public LookAndFeel_V4 {
 public:
   void drawLabel (Graphics& g, Label& label) {
     g.fillAll (Colour (0xff894B28));
-    auto labelArea = label.getLocalBounds();
+    //auto labelArea = label.getLocalBounds();
     g.setFont (Font (25.00f, Font::plain).withTypefaceStyle ("Regular"));
     g.setColour (Colours::white);
     g.drawFittedText (label.getText(),
@@ -274,7 +269,7 @@ public:
 class minimalistSong : public LookAndFeel_V4 {
 public:
 	void drawButtonText (Graphics& g, TextButton& button,
-		bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown)
+		bool, bool)
 	{
 		const int yIndent = button.proportionOfHeight (0.1f);
 		const int cornerSize = jmin (button.getHeight (), button.getWidth ()) / 2;
@@ -314,8 +309,8 @@ public:
     }
 	}
 
-  void drawButtonBackground (juce::Graphics& g, juce::Button& button, const juce::Colour& backgroundColour,
-                               bool isButtonHighlighted, bool isButtonDown) {
+  void drawButtonBackground (juce::Graphics& g, juce::Button& button, const juce::Colour&,
+                               bool, bool) {
      if (button.getName() == "btnCurrent") {
         g.fillAll (Colour (0xff1C1C1C));
      }
@@ -332,9 +327,9 @@ public:
     double lastWordPosition = 0.0;
     double lastChordPosition = 0.0;
     double lastPosition = 0.0;
-    double nextWordPosition = 0.0;
+    //double nextWordPosition = 0.0;
     int leftPad = 50;
-    auto labelArea = label.getLocalBounds();
+    //auto labelArea = label.getLocalBounds();
 
     Font font (Font (label.getHeight(), Font::plain));
     Font chordFont (Font (label.getHeight(), Font::plain));
@@ -397,7 +392,7 @@ public:
 class chordProTitle : public LookAndFeel_V4 {
 public:
   void drawLabel (Graphics& g, Label& label) {
-    auto labelArea = label.getLocalBounds();
+    //auto labelArea = label.getLocalBounds();
     int leftPad = 50;
     g.setFont (Font (label.getHeight() * 0.85f, Font::plain).withTypefaceStyle ("Regular")); //.boldened());
     g.setColour (chordProLyricColor);
@@ -411,7 +406,7 @@ public:
 class chordProSubTitle : public LookAndFeel_V4 {
 public:
   void drawLabel (Graphics& g, Label& label) {
-    auto labelArea = label.getLocalBounds();
+    //auto labelArea = label.getLocalBounds();
     int leftPad = 50;
     g.setFont (Font (label.getHeight(), Font::plain).withTypefaceStyle ("Regular").italicised());
     g.setColour (chordProLyricColor.withAlpha(0.8f));
@@ -463,7 +458,7 @@ public:
 class chordProTab : public LookAndFeel_V4 {
 public:
   void drawLabel (Graphics& g, Label& label) {
-    auto labelArea = label.getLocalBounds();
+    //auto labelArea = label.getLocalBounds();
     int leftPad = 50;
     Font font (Font (label.getHeight(), Font::plain));
     font.setTypefaceName(Font::getDefaultMonospacedFontName());
@@ -490,7 +485,8 @@ public:
 class popOverLookAndFeel : public LookAndFeel_V4 {
 public:
   void drawButtonText (Graphics& g, TextButton& button,
-		bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown)
+		//bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown)
+    bool, bool)
 	{
 		Font font (button.getHeight() * ((button.getName() == "Mono" || button.getName() == "Create") ? 0.5 : 0.9));
     auto height = ((button.getName() == "Mono" || button.getName() == "Create") ? button.getHeight() : button.getHeight() * 0.85);
@@ -501,7 +497,7 @@ public:
 				Justification::centred, 1, 1.0f);
     }
 
-  void drawButtonBackground (juce::Graphics& g, juce::Button& button, const juce::Colour& backgroundColour,
+  void drawButtonBackground (juce::Graphics& g, juce::Button& button, const juce::Colour&,
                               bool isButtonHighlighted, bool isButtonDown) {
     auto buttonArea = button.getLocalBounds().toFloat().reduced (0.5f);
     float cornerSize = 5.f;
@@ -524,7 +520,7 @@ public:
 class popOverLabel : public LookAndFeel_V4 {
 public:
 	void drawLabel (Graphics& g, Label& label) {
-		const int yIndent = label.proportionOfHeight (0.2f);
+		//const int yIndent = label.proportionOfHeight (0.2f);
 		const int textWidth = label.getWidth();
     g.setFont (Font (25.00f, Font::plain).withTypefaceStyle ("Regular"));
     g.setColour (chordProLyricColor.withMultipliedBrightness(0.8f));

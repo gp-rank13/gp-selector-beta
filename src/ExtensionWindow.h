@@ -126,16 +126,17 @@ public:
   void static processPreferencesChordPro(StringPairArray prefs);
   void static removeColorKeywordFromName(bool remove);
   void static refreshUI();
-  void static updateButtonLnF(std::string LnFname);
   void static setWindowPositionAndSize(int x, int y, int w, int h);
   void static setSongLabel();
   Rectangle<int> getWindowPositionAndSize();
   Image static getWindowIcon();
-  void mouseDrag (const MouseEvent& e) override
+  void mouseDrag ( const MouseEvent& /*e*/) override
     {
         resized();
     }
   void static chordProScrollWindow(double value);
+  void static chordProUp();
+  void static chordProDown();
   void static chordProProcessText(std::string text);
   void static chordProReadFile(int index);
   void static chordProScrollToSongPart(std::string text);
@@ -195,6 +196,7 @@ public:
   bool chordProForCurrentSong = false;
   bool chordProImagesOnly = false;
   bool chordProTwoColumns = false;
+  bool chordProDarkMode = false;
   bool fitHeight = false;
   std::unique_ptr<int> switchImmediately;
   int prevButtonSelected = 0;

@@ -29,6 +29,7 @@ target_sources(
           "${CMAKE_CURRENT_LIST_DIR}/src/IconPaths.h"
           "${CMAKE_CURRENT_LIST_DIR}/src/Constants.h"
           "${CMAKE_CURRENT_LIST_DIR}/src/Timer.h"
+          "${CMAKE_CURRENT_LIST_DIR}/src/Panels.h"
           )
 target_link_libraries(
   ${PROJECT_NAME} PRIVATE gigperformer::sdk::cpp juce::juce_gui_basics

@@ -7,7 +7,7 @@
 const std::string LOG_PREFIX = "[GPSelector] ";
 
 // Define the file separator (Windows vs Mac) to be used when reading the preferences file
-const inline char PATH_SEPARATOR() {
+inline char PATH_SEPARATOR() {
     #if JUCE_WINDOWS
         return '\\';
     #else
@@ -21,10 +21,12 @@ const std::string RACKSPACE_WINDOW_TITLE = "Rackspace Selector";
 const std::string SONG_TITLE = "Songs";
 const std::string SONG_WINDOW_TITLE = "Song Selector";
 
-// Widget names to open/close the selector window, and scroll the rackspace/song lists
+// Widget names used in the extension
 const std::string WIDGET_SELECTOR = "GP_SELECTOR";
 const std::string WIDGET_SCROLL = "GP_SELECTOR_SCROLL";
 const std::string WIDGET_CP_SCROLL = "GP_SELECTOR_CP_SCROLL";
+const std::string WIDGET_CP_UP = "GP_SELECTOR_CP_UP";
+const std::string WIDGET_CP_DOWN = "GP_SELECTOR_CP_DOWN";
 
 // List of menu items
 const std::vector<std::string> menuNames = { "Show Selector", "Hide Selector", "Toggle Zero-Based Numbers", "Toggle Immediate Switching", "Toggle Large Scroll Area", "Toggle Thick Borders"};

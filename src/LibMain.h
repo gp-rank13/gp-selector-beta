@@ -25,6 +25,11 @@ protected:
     std::string GetMenuName(int index) override;
     void InvokeMenu(int itemIndex) override;
 
+    // These are for creating the custom panel template
+    int GetPanelCount() override;
+    std::string GetPanelName(int index) override;
+    std::string GetPanelXML(int index) override;
+
 public:
     // These must be here but no need to do anything unless you want extra behavior
     LibMain();
@@ -56,6 +61,8 @@ public:
         listenForWidget(WIDGET_SELECTOR, true);
         listenForWidget(WIDGET_SCROLL, true);
         listenForWidget(WIDGET_CP_SCROLL, true);
+        listenForWidget(WIDGET_CP_UP, true);
+        listenForWidget(WIDGET_CP_DOWN, true);
     }
     
     std::string GetProductDescription() override; // This MUST be defined in your class

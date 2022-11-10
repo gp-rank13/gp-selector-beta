@@ -9,17 +9,15 @@ ExtensionWindow* ExtensionWindow::extension = nullptr;
 LibMain* lib = new LibMain(nullptr);   
 Colour chordProLyricColor = Colour::fromString(CP_DARK_LYRIC_COLOR);  
 Colour chordProChordColor = Colour::fromString(CP_DARK_CHORD_COLOR);
-bool chordProMonospaceFont = false;
-bool chordProDarkMode = false;
 Colour viewPortBackground = Colour::fromString(BACKGROUND_COLOR);
 float chordProFontSize = CP_DEFAULT_FONT_SIZE;
+bool chordProMonospaceFont = false;
 
 ExtensionWindow::ExtensionWindow ()
 {
     LookAndFeel::setDefaultLookAndFeel(buttonsLnF);
     clockTimer.startTimer (5000);
     refreshTimer.startTimer(1000);
-    bool zeroBasedNumbering = false;
 
     preferences.reset (new DynamicObject);
     preferences->setProperty("ImmediateSwitching", true);
@@ -31,7 +29,7 @@ ExtensionWindow::ExtensionWindow ()
     header.reset (new Label ("header", SONG_TITLE));
     addAndMakeVisible (header.get());
     header->setEditable (false, false, false);
-    header->setBounds (0, 0, getWidth(), 50);
+    header->setBounds (0, 0, getWidth(), HEADER_HEIGHT);
     header->setFont (Font (25.00f, Font::plain).withTypefaceStyle ("Regular"));
     header->setLookAndFeel(headerRackspacesLnF);
     
@@ -253,15 +251,14 @@ ExtensionWindow::ExtensionWindow ()
         subButtons[i]->addListener(this);  
     }
     subButtons[0]->setToggleState (true, dontSendNotification);
-    container.setBounds(5, 50, 100, 500);
     container.addAndMakeVisible(highlight.get());
 
-    for (size_t i = 0; i < buttons.size(); ++i) {
+    for (int i = 0; i < buttons.size(); ++i) {
         container.addAndMakeVisible(buttons[i]);
         buttons[i]->setVisible(false);
     }
 
-    for (size_t i = 0; i < subButtons.size(); ++i) {
+    for (int i = 0; i < subButtons.size(); ++i) {
         container.addAndMakeVisible(subButtons[i]);
         subButtons[i]->setVisible(false);
     }
@@ -286,12 +283,9 @@ ExtensionWindow::ExtensionWindow ()
 
     draggableResizer.addMouseListener(this, true);
     draggableResizer.setMouseCursor(MouseCursor::LeftRightResizeCursor);
-    draggableResizer.setBounds (250,50, 15, getHeight());
     containerRight.addAndMakeVisible (btnCurrent.get());
     containerRight.addAndMakeVisible (btnPrev.get());
     containerRight.addAndMakeVisible (btnNext.get());
-
-    viewport.setBounds(5, 40, 250, 50 * buttons.size());
     viewport.setViewedComponent(&container, false);
     viewportRight.setViewedComponent(&containerRight, false);
     viewport.getVerticalScrollBar().setColour(ScrollBar::thumbColourId, Colour::fromString(BACKGROUND_COLOR));
@@ -302,20 +296,20 @@ ExtensionWindow::ExtensionWindow ()
     addAndMakeVisible(draggableResizer);
     addAndMakeVisible(fontButtonContainer);
     addAndMakeVisible(missingImageContainer);
-    setSize (Rectangle<int>::fromString(DEFAULT_WINDOW_POSITION).getWidth(), 
-             Rectangle<int>::fromString(DEFAULT_WINDOW_POSITION).getHeight()
-            );
 
     extensionWindow.reset(new MyDocumentWindow());
     extensionWindow->setContentNonOwned(this, true);
     extensionWindow->setResizable(true, true);
     extensionWindow->setUsingNativeTitleBar(true);
 
+    setSize (Rectangle<int>::fromString(DEFAULT_WINDOW_POSITION).getWidth(), 
+             Rectangle<int>::fromString(DEFAULT_WINDOW_POSITION).getHeight()
+            );
+            
     #if JUCE_MAC
         extensionWindow->setResizeLimits(180, 250, 10000, 10000);
     #else
         extensionWindow->getPeer()->setIcon(getWindowIcon());
-        extensionWindow->setResizeLimits(200, 250, 10000, 10000);
         extensionWindow->setResizeLimits(200, 250, 10000, 10000);
     #endif
 }
@@ -363,29 +357,25 @@ void ExtensionWindow::resized()
     int buttonHeightRatio = 5; // Ratio of width:height
     auto bounds = container.getBounds();
     bool largeScrollArea = preferences->getProperty("LargeScrollArea");
-    auto buttonSize = (largeScrollArea) ? bounds.getWidth() - largeScrollAreaWidth : bounds.getWidth();
-    int buttonHeight = ((int)(buttonSize/buttonHeightRatio) < minButtonHeight) ? minButtonHeight : (int)(buttonSize / buttonHeightRatio);
+    auto buttonSize = largeScrollArea ? bounds.getWidth() - largeScrollAreaWidth 
+                                      : bounds.getWidth();
+    int buttonHeight = ((int)(buttonSize/buttonHeightRatio) < minButtonHeight) ? minButtonHeight 
+                                                                               : (int)(buttonSize / buttonHeightRatio);
     float padding = buttonHeight * 0.1;
     float rowHeight = 0.0;
-    auto x = draggableResizer.getX();
+    auto x = displayRightPanel ? draggableResizer.getX() 
+                               : getWidth();
     
-    if (!displayRightPanel) {
-       x = getWidth();
-    }
     // Width of 15 provides a wider area to select the resizer on touchscreens. The displayed width is overridden in the Paint method of MyDraggableComponent.
-    draggableResizer.setBounds (juce::jmax(minWindowWidth, x), 50, 15, getHeight()); 
+    draggableResizer.setBounds (juce::jmax(minWindowWidth, x), HEADER_HEIGHT, PANE_SEPARATOR_WIDTH, getHeight()); 
     int buttonDisplayCount = 0;
     for (int i = 0; i < buttons.size(); ++i) {
-        if (buttons[i]->isVisible()) {
-            buttonDisplayCount++;
-        }
+        if (buttons[i]->isVisible()) ++buttonDisplayCount;
     }
 
     int subButtonDisplayCount = 0;
-    for (size_t i = 0; i < subButtons.size(); ++i) {
-        if (subButtons[i]->isVisible()) {
-            subButtonDisplayCount++;
-        }
+    for (int i = 0; i < subButtons.size(); ++i) {
+        if (subButtons[i]->isVisible()) ++subButtonDisplayCount;
     }
 
     // Don't display if only 1 sub button (except if not switching immediately)
@@ -406,8 +396,8 @@ void ExtensionWindow::resized()
     String headerLabel = header->getText();
     Font headerLabelFont = header->getFont();
     int headerLabelWidth = headerLabelFont.getStringWidth(headerLabel);
-    header->setBounds (0, 0, getWidth(), 50);
-    clock->setBounds (getWidth()/2-50, 0, 100, 50);
+    header->setBounds (0, 0, getWidth(), HEADER_HEIGHT);
+    clock->setBounds (getWidth()/2 - 50, 0, 100, HEADER_HEIGHT);
     clock->setVisible(getWidth() > 460 && clock->getX() > headerLabelWidth && containerRight.isVisible() ? true : false);
     if (chordProImagesOnly && getWidth() < 560) clock->setVisible(false);
     if (viewportRight.getWidth() <= 305 && viewportRight.isVisible()) fontButtonContainer.setVisible(false);
@@ -457,20 +447,19 @@ void ExtensionWindow::resized()
     
     int scrollbarBuffer = 2;
     int selectedButton = 999;
-    for (size_t i = 0; i < buttons.size(); ++i) {
+    for (int i = 0; i < buttons.size(); ++i) {
          buttons[i]->setBounds (buttonSize * (i % columns) + padding,
                                        buttonHeight * (i / columns) + padding + (i > selectedButton ? buttonHeight * subButtonDisplayCount : 0),
                                        buttonSize - padding - scrollbarBuffer,
                                        buttonHeight - padding);
         if (buttons[i]->getToggleState()) {  // Display sub buttons
             selectedButton = i;
-            for (size_t j = 0; j < subButtonDisplayCount; ++j) {
+            for (int j = 0; j < subButtonDisplayCount; ++j) {
                subButtons[j]->setBounds (buttonSize * (j % columns) + padding,
                                        buttonHeight * ((j+1) / columns) + (buttonHeight * (i / columns) + padding),
                                        buttonSize - padding - scrollbarBuffer,
                                        buttonHeight - padding);
             }
-            auto highlightPadding = (buttonHeight - padding) * 0.3;
             highlight->setBounds (buttonSize * (i % columns) + padding,
                                     buttonHeight + (buttonHeight * (i / columns) + padding),
                                     buttonSize - padding - scrollbarBuffer,
@@ -481,18 +470,18 @@ void ExtensionWindow::resized()
     }
 
     container.setBounds(0, 50, juce::jmax (minWindowWidth-10, x - 10), (buttonHeight * rowCount) + padding);
-    containerRight.setBounds(juce::jmax (minWindowWidth-10, x - 10), 50, getWidth()- juce::jmax (minWindowWidth, x), getHeight()-50);
+    containerRight.setBounds(juce::jmax (minWindowWidth-10, x - 10), 50, getWidth()- juce::jmax (minWindowWidth, x), getHeight() - HEADER_HEIGHT);
     fontButtonContainer.setBounds(getWidth() - 300, HEADER_HEIGHT, 290, HEADER_HEIGHT);
     missingImageContainer.setBounds(getWidth() - 350, HEADER_HEIGHT, 340, HEADER_HEIGHT);
 
-    viewport.setBounds(0, 50, juce::jmax (minWindowWidth, x), getHeight()-50);
+    viewport.setBounds(0, HEADER_HEIGHT, juce::jmax (minWindowWidth, x), getHeight() - HEADER_HEIGHT);
     viewport.setViewPosition(viewPos);
-    viewportRight.setBounds(juce::jmax (minWindowWidth, x), 50, getWidth() - juce::jmax (minWindowWidth, x), getHeight());
+    viewportRight.setBounds(juce::jmax (minWindowWidth, x), HEADER_HEIGHT, getWidth() - juce::jmax (minWindowWidth, x), getHeight() - HEADER_HEIGHT);
 
     btnCurrent->setBounds (0 , containerRight.getHeight()/4, containerRight.getWidth(), containerRight.getHeight()/2);
     btnPrev->setBounds (10 , 10, containerRight.getWidth()-10, containerRight.getHeight()/4);
     btnNext->setBounds (10 , containerRight.getHeight()*3/4, containerRight.getWidth()-10, containerRight.getHeight()/4);
-    btnModeSwitch->setBounds (15, 0, getWidth() > 230 ? 120 : 60, 50);
+    btnModeSwitch->setBounds (15, 0, getWidth() > 230 ? 120 : 60, HEADER_HEIGHT);
 
     fontDown->setBounds (80,5,50,HEADER_HEIGHT-10);
     fontUp->setBounds (140,5,50,HEADER_HEIGHT-10);
@@ -537,7 +526,7 @@ void ExtensionWindow::resized()
                         float newHeight = originalHeight / (ratio * columns);
                         int imageX = 0;
                         if (fitHeight && chordProImagesOnly) {
-                            newHeight = (float)(viewportRight.getHeight() - 50);
+                            newHeight = (float)(viewportRight.getHeight() - padding);
                             newWidth = originalWidth / originalHeight * newHeight;
                             imageX = juce::jmax(0, (int)((viewportRight.getWidth() - newWidth) / 2));
                             if (chordProTwoColumns) imageX = juce::jmax(0, (int)((viewportRight.getWidth() - (newWidth * columns)) / 2));
@@ -561,7 +550,7 @@ void ExtensionWindow::resized()
                 chordProLines[i]->setBounds(10,runningHeight,chordProContainer.getWidth(),0);
             }
         }
-        chordProContainer.setBounds(viewportRight.getX(), viewportRight.getY(), viewportRight.getWidth() - 10, runningHeight + 60);
+        chordProContainer.setBounds(viewportRight.getX(), viewportRight.getY(), viewportRight.getWidth() - 10, runningHeight);
     }
     viewportRight.setViewPosition(viewRightPos);
 }
@@ -573,7 +562,7 @@ void ExtensionWindow::refreshUI() {
         extension->buttons[i]->setVisible(false);
     }
     // Reset all sub buttons
-    for (size_t i = 0; i < extension->subButtons.size(); ++i) {
+    for (int i = 0; i < extension->subButtons.size(); ++i) {
         extension->subButtons[i]->setToggleState(false, dontSendNotification);
         extension->subButtons[i]->setVisible(false);
     }
@@ -660,7 +649,6 @@ String ExtensionWindow::buttonName(int index) {
 }
 
 bool ExtensionWindow::isButtonSelected(int index) {
-    bool selected = false;
     if (index < extension->subButtons.size() && index >= 0) {
         return extension->buttons[index]->getToggleState();
     }
@@ -669,7 +657,7 @@ bool ExtensionWindow::isButtonSelected(int index) {
 
 int ExtensionWindow::getButtonSelected() {
     int selected = 0;
-    for (size_t i = 0; i < extension->buttons.size(); ++i) {
+    for (int i = 0; i < extension->buttons.size(); ++i) {
         if (extension->buttons[i]->getToggleState()) {
             selected = i;
             break;
@@ -735,7 +723,6 @@ void ExtensionWindow::updatePrevCurrNext(int index) {
 }
 
 bool ExtensionWindow::isSubButtonSelected(int index) {
-    bool selected = false;
     if (index < extension->subButtons.size() && index >= 0) {
         return extension->subButtons[index]->getToggleState();
     }
@@ -746,7 +733,7 @@ bool ExtensionWindow::isSubButtonsCollapsed() {
     bool collapsed = true;
     int buttonCount = extension->subButtons.size();
     if (buttonCount > 1) { // If only 1 button it will be collapsed by default
-        for (size_t i = 0; i < buttonCount; ++i) {
+        for (int i = 0; i < buttonCount; ++i) {
             if (extension->subButtons[i]->isVisible()) {
                 collapsed = false;
                 break;
@@ -910,22 +897,6 @@ std::vector<std::string> ExtensionWindow::getSubButtonNamesByIndex(int index) {
     return names;
 } 
 
-void ExtensionWindow::updateButtonLnF(std::string LnFname) {
-    auto& lnf = extension->buttons[0]->getLookAndFeel();
-    std::string lnfName = typeid(lnf).name();
-
-    if (lnfName == typeid(buttonLookAndFeel).name()) {
-        for (size_t i = 0; i < extension->buttons.size(); ++i) {
-            extension->buttons[i]->setLookAndFeel(extension->gridButtonsLnF);  
-        }
-    } else {
-        for (size_t i = 0; i < extension->buttons.size(); ++i) {
-            extension->buttons[i]->setLookAndFeel(extension->buttonsLnF);  
-        }
-    }
-    extension->resized();
- }
-
 void ExtensionWindow::updateButtonLabel(const String& text) {
     if (text == "Songs"){ 
         extension->header->setLookAndFeel(extension->headerSongsLnF);
@@ -959,7 +930,6 @@ void ExtensionWindow::buttonClicked (Button* buttonThatWasClicked)
     {
         displayRightPanel = !displayRightPanel;
         if (displayRightPanel) {
-            auto bounds = draggableResizer.getBounds();
             setSize(container.getWidth() + 500, getHeight());
             sidePanelCloseButton->setVisible(true);
             sidePanelOpenButton->setVisible(false);
@@ -981,15 +951,15 @@ void ExtensionWindow::buttonClicked (Button* buttonThatWasClicked)
       
     } else if (buttonThatWasClicked == btnPrev.get()) {
         if (lib->inSetlistMode()) {
-            bool success = lib->switchToSong(juce::jmax(0, lib->getCurrentSongIndex()-1), 0);
+            lib->switchToSong(juce::jmax(0, lib->getCurrentSongIndex()-1), 0);
         } else {
-            bool success = lib->switchToRackspace(juce::jmax(0, lib->getCurrentRackspaceIndex()-1));
+            lib->switchToRackspace(juce::jmax(0, lib->getCurrentRackspaceIndex()-1));
         }
     } else if (buttonThatWasClicked == btnNext.get()) {
         if (lib->inSetlistMode()) {
-            bool success = lib->switchToSong(juce::jmin(buttons.size()-1,lib->getCurrentSongIndex()+1), 0);
+            lib->switchToSong(juce::jmin(buttons.size()-1,lib->getCurrentSongIndex()+1), 0);
         } else {
-            bool success = lib->switchToRackspace(juce::jmin(buttons.size()-1,lib->getCurrentRackspaceIndex()+1));
+            lib->switchToRackspace(juce::jmin(buttons.size()-1,lib->getCurrentRackspaceIndex()+1));
         }
     } else if (buttonThatWasClicked == pinUnpinnedButton.get() || buttonThatWasClicked == pinPinnedButton.get()) {
         bool newPinnedStatus = !(extension->extensionWindow->isAlwaysOnTop());
@@ -1026,12 +996,12 @@ void ExtensionWindow::buttonClicked (Button* buttonThatWasClicked)
     } else if (buttonThatWasClicked->getProperties()["type"] == "button") {
         bool switchRackSongImmediately = preferences->getProperty("ImmediateSwitching");
         bool inSetlist = lib->inSetlistMode();
-        size_t currentGPIndex = (inSetlist ? lib->getCurrentSongIndex() : lib->getCurrentRackspaceIndex());
+        int currentGPIndex = (inSetlist ? lib->getCurrentSongIndex() : lib->getCurrentRackspaceIndex());
         int buttonIndex = buttonThatWasClicked->getProperties()["index"];
         std::vector<std::string> blank;
 
         // Ensure other buttons are deselected
-        for (size_t i = 0; i < buttons.size(); ++i) {
+        for (int i = 0; i < buttons.size(); ++i) {
             if (buttonIndex != i) {
                 buttons[i]->setToggleState(false, dontSendNotification);
             }
@@ -1045,7 +1015,7 @@ void ExtensionWindow::buttonClicked (Button* buttonThatWasClicked)
             }
              // Ensure no button is selected on new song/rackspace if pref is set
             if (buttonIndex != currentGPIndex && !switchRackSongImmediately) {
-                for (size_t i = 0; i < subButtons.size(); ++i) {
+                for (int i = 0; i < subButtons.size(); ++i) {
                     if (subButtons[i]->getToggleState()) {
                         subButtons[i]->setToggleState(false, dontSendNotification);
                     }
@@ -1057,9 +1027,9 @@ void ExtensionWindow::buttonClicked (Button* buttonThatWasClicked)
         }
         if (buttonIndex != currentGPIndex && switchRackSongImmediately) {
             if (inSetlist) {
-                bool success = lib->switchToSong(buttonIndex, 0);
+                lib->switchToSong(buttonIndex, 0);
             } else {
-                bool success = lib->switchToRackspace(buttonIndex, 0);
+                lib->switchToRackspace(buttonIndex, 0);
             }
             updatePrevCurrNext(buttonIndex);
         }
@@ -1069,14 +1039,14 @@ void ExtensionWindow::buttonClicked (Button* buttonThatWasClicked)
         int subButtonIndex = buttonThatWasClicked->getProperties()["index"];
         int buttonIndex = getButtonSelected();
         if (lib->inSetlistMode()) {
-            bool success = lib->switchToSong(buttonIndex, subButtonIndex);
+            lib->switchToSong(buttonIndex, subButtonIndex);
             std::string songpartName = lib->getSongpartName(buttonIndex, subButtonIndex);
             chordProScrollToSongPart(songpartName);
         } else {
-            bool success = lib->switchToRackspace(buttonIndex, subButtonIndex);
+            lib->switchToRackspace(buttonIndex, subButtonIndex);
         }
         // Ensure other buttons are toggled off
-        for (size_t i = 0; i < subButtons.size(); ++i) {
+        for (int i = 0; i < subButtons.size(); ++i) {
             if (i != subButtonIndex && subButtons[i]->getToggleState()) {
                 subButtons[i]->setToggleState(false, dontSendNotification);
             }
@@ -1184,7 +1154,7 @@ void ExtensionWindow::processPreferencesDefaults(StringPairArray prefs) {
     setWindowPositionAndSize(positionSize[0].getIntValue(), positionSize[1].getIntValue(), positionSize[2].getIntValue(), positionSize[3].getIntValue());
     extension->preferences->setProperty("ThickBorders", prefs.getValue("ThickBorders", "") == "true" ? true : false);
     extension->preferences->setProperty("BorderColor", prefs.getValue("BorderColor", DEFAULT_BORDER_COLOR));
-    chordProDarkMode = prefs.getValue("ChordProDarkMode", "") == "true" ? true : false;
+    extension->chordProDarkMode = prefs.getValue("ChordProDarkMode", "") == "true" ? true : false;
 }
 
 void ExtensionWindow::processPreferencesColors(StringPairArray prefs) {
@@ -1213,6 +1183,29 @@ void ExtensionWindow::chordProScrollWindow(double value) {
     int newY = (int) (value * (double) deltaH);
     viewportPosition.setY(newY);
     extension->viewportRight.setViewPosition(viewportPosition);
+}
+
+void ExtensionWindow::chordProUp() {
+    Rectangle<int> viewArea = extension->viewportRight.getViewArea();
+    extension->viewportRight.setViewPosition(0, viewArea.getY() - viewArea.getHeight());
+
+}
+
+void ExtensionWindow::chordProDown() {
+    Rectangle<int> viewArea = extension->viewportRight.getViewArea();
+    extension->viewportRight.setViewPosition(0, viewArea.getY() + viewArea.getHeight());
+
+}
+
+void ExtensionWindow::chordProScrollToSongPart(std::string songPartName) {
+    for (int i = 0; i < extension->chordProLines.size(); ++i) { 
+        if (extension->chordProLines[i]->getProperties()["type"] == "gp_songpartname") {
+            if (extension->chordProLines[i]->getText().toStdString() == songPartName) {
+                Rectangle<int> buttonBounds = extension->chordProLines[i]->getBounds();
+                extension->viewportRight.setViewPosition(0, buttonBounds.getY());
+            }
+        }
+    }
 }
 
 void ExtensionWindow::chordProProcessText(std::string text) {
@@ -1282,7 +1275,7 @@ void ExtensionWindow::chordProProcessText(std::string text) {
                             String pathDarkMode;
                             Image image;
                             bool createDarkMode = false;
-                            if (chordProDarkMode) {
+                            if (extension->chordProDarkMode) {
                                 pathDarkMode = file.getFileNameWithoutExtension() + CP_DARK_MODE_FILE_SUFFIX + file.getFileExtension();
                                 fileDarkMode = file.getParentDirectory().getChildFile(pathDarkMode);
                                 image = ImageFileFormat::loadFrom(fileDarkMode);
@@ -1348,6 +1341,8 @@ void ExtensionWindow::chordProProcessText(std::string text) {
                     } else {
                         extension->chordProLines[i]->getProperties().set("type", "chordAndLyrics"); 
                     }
+                } else if (line.trim() != ""){
+                    extension->chordProLines[i]->getProperties().set("type", "lyricOnly"); 
                 }
                 extension->chordProLines[i]->setText(line.trim(), dontSendNotification);
             }
@@ -1375,6 +1370,7 @@ void ExtensionWindow::chordProReadFile(int index) {
         } else {
             extension->log("File not found: " + chordProFullPath.getFullPathName());
             extension->chordProForCurrentSong = false;
+            extension->chordProImagesOnly = false;
             extension->chordProDisplayGUI(false);
             extension->chordProReset();
         }
@@ -1400,18 +1396,6 @@ void ExtensionWindow::chordProReset() {
         extension->chordProImages[i]->getProperties().set("path", ""); 
     }
     missingImageContainer.setVisible(false);
-}
-
-void ExtensionWindow::chordProScrollToSongPart(std::string songPartName) {
-    Rectangle<int> viewportBounds = extension->viewportRight.getViewArea();
-    for (int i = 0; i < extension->chordProLines.size(); ++i) { 
-        if (extension->chordProLines[i]->getProperties()["type"] == "gp_songpartname") {
-            if (extension->chordProLines[i]->getText().toStdString() == songPartName) {
-                Rectangle<int> buttonBounds = extension->chordProLines[i]->getBounds();
-                extension->viewportRight.setViewPosition(0, buttonBounds.getY());
-            }
-        }
-    }
 }
 
 void ExtensionWindow::chordProDisplayGUI(bool display) { 

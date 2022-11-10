@@ -2,6 +2,7 @@
 
 #include <regex>
 #include "LibMain.h"
+#include "Panels.h"
 
 namespace gigperformer {
    namespace sdk {
@@ -22,7 +23,7 @@ int LibMain::GetMenuCount()
  std::string  LibMain::GetMenuName(int index)
 {
    std::string text;
-   if (index >= 0 && index < menuNames.size())
+   if (index >= 0 && index < (int)menuNames.size())
        text =  menuNames[index];
          
    return text;      
@@ -30,7 +31,7 @@ int LibMain::GetMenuCount()
 
 void LibMain::InvokeMenu(int index)
 {
-   if (index >= 0 && index < menuNames.size())
+   if (index >= 0 && index < (int)menuNames.size())
          {
             switch (index)
                {
@@ -56,6 +57,28 @@ void LibMain::InvokeMenu(int index)
                      break;   
                }
          }
+}
+
+int LibMain::GetPanelCount() {
+   return panelNames.size();
+}
+
+std::string LibMain::GetPanelName(int index) {
+   std::string text; 
+   size_t panelIndex = (size_t)index;
+   if (panelIndex >= 0 && panelIndex < panelNames.size())
+      text = panelNames[index];
+         
+   return text;      
+}
+
+std::string LibMain::GetPanelXML(int index) {
+   std::string text;
+   size_t panelIndex = (size_t)index;
+   if (panelIndex >= 0 && panelIndex < panelNames.size()) {
+        text = panelXML[index];
+   }
+   return text;
 }
 
 std::vector<std::string> LibMain::getSongNames() {
@@ -162,7 +185,7 @@ void LibMain::OnVariationChanged(int oldIndex, int newIndex) {
     }
 }
 
-void LibMain::OnSongChanged(int oldIndex, int newIndex) {
+void LibMain::OnSongChanged(int, int newIndex) {
     if (isGigFileLoading) return;
     if (newIndex >= 0 && inSetlistMode()) {
         ExtensionWindow::updateButtonNames(getSongNames());
@@ -190,7 +213,7 @@ void LibMain::OnSongPartChanged(int oldIndex, int newIndex) {
     }
 }
 
-void LibMain::OnSetlistChanged(const std::string &newSetlistName) {
+void LibMain::OnSetlistChanged(const std::string&) {
     if (isGigFileLoading) return;
     if (inSetlistMode()) {
         ExtensionWindow::updateButtonNames(getSongNames());
@@ -206,7 +229,7 @@ void LibMain::OnModeChanged(int mode) {
 }
 
 // Handle widget changes
-void LibMain::OnWidgetValueChanged(const std::string &widgetName, double newValue) {
+void LibMain::OnWidgetValueChanged(const std::string& widgetName, double newValue) {
     if (widgetName == WIDGET_SELECTOR) {
         if (newValue == 1.0) {
          ExtensionWindow::displayWindow(true);
@@ -217,6 +240,10 @@ void LibMain::OnWidgetValueChanged(const std::string &widgetName, double newValu
             ExtensionWindow::scrollWindow(newValue);
     } else if (widgetName == WIDGET_CP_SCROLL) {
             ExtensionWindow::chordProScrollWindow(newValue);
+    } else if(widgetName == WIDGET_CP_UP && newValue == 1.0) {
+        ExtensionWindow::chordProUp();
+    } else if(widgetName == WIDGET_CP_DOWN && newValue == 1.0) {
+        ExtensionWindow::chordProDown();
     } 
 }
 
