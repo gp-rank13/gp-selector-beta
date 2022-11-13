@@ -144,6 +144,18 @@ void LibMain::OnStatusChanged(GPStatusType status) {
             }
             ExtensionWindow::refreshUI();
             break;
+        case GPStatus_RackspaceListModified:
+            //consoleLog("Rackspace list changed");
+            break;
+        case GPStatus_SongListModifed:
+            //consoleLog("Song list changed");
+            break;
+        case GPStatus_SongPartListModified:
+            //consoleLog("SongPart list changed");
+            break;
+        case GPStatus_VariationListModified:
+            //consoleLog("Variation list changed");
+            break;
         default:
             break;
     }

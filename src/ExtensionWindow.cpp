@@ -589,7 +589,6 @@ void ExtensionWindow::refreshUI() {
             selectButton(rackspaceIndex);
             selectSubButton(lib->getCurrentVariationIndex());
             extension->chordProForCurrentSong = false;
-            extension->chordProImagesOnly = false;
             extension->chordProReset();
             extension->chordProDisplayGUI(false);
     }
@@ -1218,7 +1217,6 @@ void ExtensionWindow::chordProProcessText(std::string text) {
     String directiveValue;
     bool tabLine = false;
     extension->chordProReset();
-    extension->chordProImagesOnly = false;
     bool chordProNonImage = false;
 
     // Extend size if needed
@@ -1352,28 +1350,25 @@ void ExtensionWindow::chordProProcessText(std::string text) {
         }
     }
     if (!chordProNonImage) extension->chordProImagesOnly = true;
-    extension->chordProDisplayGUI(extension->chordProForCurrentSong);
+    extension->chordProDisplayGUI(true);
 }
 
 void ExtensionWindow::chordProReadFile(int index) {
     std::string chordProFileText;
     std::string chordProFile = lib->getChordProFilenameForSong(index);
     extension->chordProForCurrentSong = (chordProFile == "") ? false : true;
-    if (!extension->chordProForCurrentSong) {
-        extension->chordProDisplayGUI(false);
-        extension->chordProReset();
-    } else {
+    if (extension->chordProForCurrentSong) {
         File chordProFullPath = File(chordProFile);
         if (chordProFullPath.existsAsFile()) {
             gigperformer::sdk::GPUtils::loadTextFile(chordProFullPath.getFullPathName().toStdString(), chordProFileText);
             chordProProcessText(chordProFileText);   
         } else {
-            extension->log("File not found: " + chordProFullPath.getFullPathName());
             extension->chordProForCurrentSong = false;
-            extension->chordProImagesOnly = false;
-            extension->chordProDisplayGUI(false);
-            extension->chordProReset();
         }
+    }
+    if (!extension->chordProForCurrentSong) {
+        extension->chordProDisplayGUI(false);
+        extension->chordProReset();
     }
 }
 
@@ -1396,6 +1391,8 @@ void ExtensionWindow::chordProReset() {
         extension->chordProImages[i]->getProperties().set("path", ""); 
     }
     missingImageContainer.setVisible(false);
+    extension->chordProImagesOnly = false;
+
 }
 
 void ExtensionWindow::chordProDisplayGUI(bool display) { 
