@@ -302,6 +302,13 @@ ExtensionWindow::ExtensionWindow ()
     extensionWindow->setResizable(true, true);
     extensionWindow->setUsingNativeTitleBar(true);
 
+    hud.reset (new HUDContainer());
+    hud->addToDesktop (ComponentPeer::windowIsTemporary);
+    Rectangle<int> bounds = Desktop::getInstance().getDisplays().getTotalBounds(false);
+    hud->setBounds (bounds);
+    hud->setAlwaysOnTop (true);
+    hud->setVisible (false);
+
     setSize (Rectangle<int>::fromString(DEFAULT_WINDOW_POSITION).getWidth(), 
              Rectangle<int>::fromString(DEFAULT_WINDOW_POSITION).getHeight()
             );
@@ -1144,6 +1151,21 @@ void ExtensionWindow::finalize()
     extension = nullptr;
 }
 
+void ExtensionWindow::displayHUD(bool display)
+{
+    if (extension->hud != nullptr)
+    {
+        MessageManager::getInstance()->callAsync([display]() {
+                                                        
+                                                        extension->hud->setVisible(false);
+                                                        if (display) {
+                                                            extension->hud->setVisible(true);
+                                                        }
+                                                      
+                                                    });
+    }
+}
+
 void ExtensionWindow::processPreferencesDefaults(StringPairArray prefs) {
     setZeroBasedNumbering(prefs.getValue("ZeroBasedNumbers", "") == "true" ? true : false);
     extension->preferences->setProperty("ImmediateSwitching", prefs.getValue("ImmediateSwitching", "") == "false" ? false : true);
@@ -1520,6 +1542,12 @@ void ExtensionWindow::setSongLabel() {
 
 void MyDocumentWindow::closeButtonPressed () { 
     ExtensionWindow::displayWindow(false);
+}
+
+void HUDContainer::paint (Graphics& g) {
+    auto area = getLocalBounds().toFloat();
+    g.setColour (Colour(0xdd151515));
+    g.fillRect(area);
 }
 
 void ClockTimer::timerCallback() {

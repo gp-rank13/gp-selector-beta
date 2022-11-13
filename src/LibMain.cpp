@@ -1,8 +1,8 @@
 // Rackspace and song selector extension for Gig Performer by @rank13
 
-#include <regex>
 #include "LibMain.h"
 #include "Panels.h"
+#include <regex>
 
 namespace gigperformer {
    namespace sdk {
@@ -256,7 +256,9 @@ void LibMain::OnWidgetValueChanged(const std::string& widgetName, double newValu
         ExtensionWindow::chordProUp();
     } else if(widgetName == WIDGET_CP_DOWN && newValue == 1.0) {
         ExtensionWindow::chordProDown();
-    } 
+    } else if(widgetName == WIDGET_HUD) {
+        ExtensionWindow::displayHUD(newValue == 1.0 ? true : false);
+    }
 }
 
 void LibMain::readPreferencesFile(std::string onlySection = "") {

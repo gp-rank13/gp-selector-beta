@@ -65,6 +65,16 @@ public:
   } 
 };
 
+class HUDContainer : public Component
+{
+public:
+  HUDContainer() { }
+  virtual ~HUDContainer() { }
+  void paint (Graphics& g) override;
+
+  JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (HUDContainer)
+};
+
 class MyDocumentWindow : public DocumentWindow
 {
   public:
@@ -86,6 +96,8 @@ public:
   void closeButtonPressed();
   void static initialize(); // Call this to show the component
   void static finalize(); // Call this when library is about to be unloaded to free resources
+  void static createHUD();
+  void static displayHUD(bool display);
   void paint (Graphics& g) override;
   void resized() override;
   void buttonClicked (Button* buttonThatWasClicked) override;
@@ -226,8 +238,7 @@ public:
   std::unique_ptr<ShapeButton> columnsOneButton;
   std::unique_ptr<ShapeButton> fitWidthButton;
   std::unique_ptr<ShapeButton> fitHeightButton;
-
-
+  std::unique_ptr<HUDContainer> hud;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ExtensionWindow)
 };
