@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include <gigperformer/sdk/GPUtils.h>
 #include <gigperformer/sdk/GigPerformerAPI.h>
-#include <juce_gui_basics/juce_gui_basics.h>
+#include <gigperformer/sdk/GPUtils.h>
+//#include <juce_gui_basics/juce_gui_basics.h>
 #include "ExtensionWindow.h"
 #include "Constants.h"
 
@@ -67,11 +67,11 @@ public:
     }
     
     std::string GetProductDescription() override; // This MUST be defined in your class
-    std::vector<std::string> getRackspaceNames();
-    std::vector<std::string> getVariationNames(int rackspaceIndex);
-    std::vector<std::string> getSongNames();
-    std::vector<std::string> getSongPartNames(int songIndex);
+    StringArray getRackspaceNames();
+    StringArray getVariationNames(int rackspaceIndex);
+    StringArray getSongNames();
+    StringArray getSongPartNames(int songIndex);
 private:
-    std::vector<std::vector<std::string>> getAllVariationNames();
-    void readPreferencesFile(std::string onlySection);
+    StringArray getAllVariationNames();
+    void readPreferencesFile(String onlySection);
 };

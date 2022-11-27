@@ -70,7 +70,18 @@ class HUDContainer : public Component
 public:
   HUDContainer() { }
   virtual ~HUDContainer() { }
-  void paint (Graphics& g) override;
+  void paint (Graphics& g) override {
+    auto area = getLocalBounds().toFloat();
+    g.setColour (Colour(0xee151515));
+    g.fillRect(area);
+  }
+  void mouseUp(const MouseEvent &e) override
+  {
+    const int nbOfClicks = e.getNumberOfClicks();
+    if (nbOfClicks == 2) {
+        this->setVisible(false);
+    }
+  }
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (HUDContainer)
 };
@@ -96,7 +107,6 @@ public:
   void closeButtonPressed();
   void static initialize(); // Call this to show the component
   void static finalize(); // Call this when library is about to be unloaded to free resources
-  void static createHUD();
   void static displayHUD(bool display);
   void paint (Graphics& g) override;
   void resized() override;
@@ -104,12 +114,12 @@ public:
   void closeWindow();
   void static updateButtonLabel(const String& label);
   void static addButtons(int count);
-  void static updateButtonNames(std::vector<std::string> buttonNames);
-  void static compareButtonNames(std::vector<std::string> buttonNames);
+  void static updateButtonNames(StringArray buttonNames);
+  void static compareButtonNames(StringArray buttonNames);
   void static addSubButtons(int count);
-  void static updateSubButtonNames(std::vector<std::string> buttonNames);
-  void static compareSubButtonNames(std::vector<std::string> buttonNames);
-  std::vector<std::string> getSubButtonNamesByIndex(int index);
+  void static updateSubButtonNames(StringArray buttonNames);
+  void static compareSubButtonNames(StringArray buttonNames);
+  StringArray getSubButtonNamesByIndex(int index);
   bool static isButtonSelected(int index);
   int static getButtonSelected();
   int static getVisibleButtonCount();
@@ -119,8 +129,10 @@ public:
   bool static isSubButtonSelected(int index);
   bool static isSubButtonsCollapsed(); 
   void static selectSubButton(int index);
-  void static selectButtonAndSubButton(int index, std::vector<std::string> buttonNames);
+  void static selectButtonAndSubButton(int index, StringArray buttonNames);
   void static updateClock(const String& formattedTime);
+  void static addHudButtons(int count);
+  void static updateHudLabel(String title, String subtitle);
   void static setZeroBasedNumbering(bool zeroBased);
   void static setImmediateSwitching(bool immediateSwitch);
   void static setLargeScrollArea(bool largeScrollArea);
@@ -146,17 +158,19 @@ public:
     {
         resized();
     }
+  void static checkDisplayCount();
   void static chordProScrollWindow(double value);
   void static chordProUp();
   void static chordProDown();
-  void static chordProProcessText(std::string text);
+  void static chordProProcessText(String text);
   void static chordProReadFile(int index);
-  void static chordProScrollToSongPart(std::string text);
+  void static chordProScrollToSongPart(String text);
   void chordProDisplayGUI(bool display);
   void chordProSetColors();
   void chordProImagesCheckAndAdd(int index);
   int chordProGetVisibleImageCount();
   void static chordProCreateInvertedImages();
+  void static updateHUDButtons();
 
   static ExtensionWindow* extension;
   MyDraggableComponent draggableResizer;
@@ -178,12 +192,14 @@ public:
   SharedResourcePointer<chordProTab> chordProTabLnF;
   SharedResourcePointer<popOverLookAndFeel>popOverLnf;
   SharedResourcePointer<popOverLabel>popOverLabelLnf;
+  SharedResourcePointer<hudButtonLookAndFeel> hudLnF;
+  SharedResourcePointer<hudTitleLookAndFeel> hudTitleLnF;
 
  private:
   void log(String text);
-
   void chordProRefresh();
   void chordProReset();
+  
 
   std::unique_ptr<MyDocumentWindow> extensionWindow;
   TooltipWindow tooltipWindow;
@@ -194,8 +210,14 @@ public:
   Component chordProContainer;
   PopOver fontButtonContainer;
   PopOver missingImageContainer;
+  HUDContainer hudContainer;
+  Component hudMainContent;
+  Viewport viewportHud;
   OwnedArray<TextButton> buttons;
   OwnedArray<TextButton> subButtons;
+  OwnedArray<TextButton> hudButtons;
+  OwnedArray<TextButton> displayButtons;
+  OwnedArray<TextButton> columnButtons;
   OwnedArray<Label> chordProLines;
   OwnedArray<ImageComponent> chordProImages;
   StringPairArray buttonColors;
@@ -217,6 +239,7 @@ public:
   std::unique_ptr<Label> clock;
   std::unique_ptr<Label> fontPopOverLabel;
   std::unique_ptr<Label> missingImageLabel;
+  std::unique_ptr<Label> hudTitle;
   std::unique_ptr<TextButton> btnCurrent;
   std::unique_ptr<TextButton> btnPrev;
   std::unique_ptr<TextButton> btnNext;
@@ -238,6 +261,7 @@ public:
   std::unique_ptr<ShapeButton> columnsOneButton;
   std::unique_ptr<ShapeButton> fitWidthButton;
   std::unique_ptr<ShapeButton> fitHeightButton;
+  std::unique_ptr<ShapeButton> hudCloseButton;
   std::unique_ptr<HUDContainer> hud;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ExtensionWindow)

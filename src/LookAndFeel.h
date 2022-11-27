@@ -9,6 +9,7 @@ using namespace juce;
 extern Colour chordProLyricColor;
 extern Colour chordProChordColor;
 extern bool chordProMonospaceFont;
+extern bool zeroBasedNumbers;
 extern String songLabel;
 
 class buttonLookAndFeel : public LookAndFeel_V4 {
@@ -32,18 +33,21 @@ public:
     // Button number
     Font font1 (juce::jmax(button.getHeight () * 0.4f, 16.f));
     g.setFont (font1);
-    auto buttonNumber = button.getProperties()["displayIndex"];
-    auto numberWidth = font1.getStringWidthFloat(button.getName()); 
+    //auto buttonNumber = button.getProperties()["displayIndex"];
+    auto buttonNumber = button.getProperties()["index"].toString();
+    if (!zeroBasedNumbers) buttonNumber = String(buttonNumber.getIntValue() + 1);
+    auto numberWidth = buttonNumber.length() == 1 ? font1.getStringWidthFloat("0" + buttonNumber) : font1.getStringWidthFloat(buttonNumber); 
     g.drawFittedText (buttonNumber,
       leftIndent, yIndent, numberWidth, buttonHeight - yIndent * 2,
       Justification::right, rows, 0.5f);
 
     // Button Name
+    float nameIndentMultiplier = buttonNumber.length() < 3 ? 1.5 : 1.3;
     Font font2 (juce::jmax(button.getHeight () * 0.4f, 16.f));
     g.setFont (font2);
     g.setColour (button.getToggleState () ? Colours::white : Colour(0xffc5c5c5));
     g.drawFittedText (buttonText,
-      leftIndent + (numberWidth * 1.5), yIndent, availableWidth - (numberWidth * 1.5), buttonHeight - yIndent * 2,
+      leftIndent + (numberWidth * nameIndentMultiplier), yIndent, availableWidth - (numberWidth * 1.5), buttonHeight - yIndent * 2,
       Justification::left, rows, 1.0f);
 	}
 
@@ -155,6 +159,137 @@ public:
   }
 };
 
+class hudButtonLookAndFeel : public LookAndFeel_V4 {
+public:
+	void drawButtonText (Graphics& g, TextButton& button,	bool, bool)
+	{
+		Font font (button.getHeight () * 0.25f);
+		g.setFont (font);
+		g.setColour (button.findColour (button.getToggleState () ? TextButton::textColourOnId
+			: TextButton::textColourOffId)
+      .withMultipliedAlpha (0.5f));
+    
+    const auto buttonWidth = (double) button.getWidth();
+    const auto buttonHeight = (double) button.getHeight();
+    const String buttonText = button.getButtonText();
+    const auto yIndent = buttonHeight * 0.05;
+		const auto leftIndent = buttonWidth > 160 ? yIndent * 2: 5;
+    //auto availableWidth = buttonWidth - leftIndent;
+    const int rows = 1;
+		
+    // Button number
+    Font font1 (juce::jmax(button.getHeight () * 0.2f, 16.f));
+    g.setFont (font1.boldened());
+    //auto buttonNumber = button.getProperties()["displayIndex"];
+    auto buttonNumber = button.getProperties()["parentIndex"].toString();
+    auto buttonNumber2 = button.getProperties()["index"].toString();
+    if (!zeroBasedNumbers) {
+      buttonNumber = String(buttonNumber.getIntValue() + 1);
+      buttonNumber2 = String(buttonNumber2.getIntValue() + 1);
+    }
+    auto numberWidth = font1.getStringWidthFloat(buttonNumber + "0"); 
+    g.drawFittedText (buttonNumber,
+      leftIndent, 0, buttonWidth - leftIndent, buttonHeight / 4,
+      Justification::left, rows, 0.5f);
+
+    g.setFont (font1.withHeight(font1.getHeight() * 0.8f));
+    g.drawFittedText ("/  " + buttonNumber2,
+      leftIndent + numberWidth, 0, buttonWidth - leftIndent - numberWidth, buttonHeight / 4,
+      Justification::left, rows, 0.5f);
+    
+
+    // Button Name
+    String buttonName1 = button.getProperties()["parent"].toString();
+    //float nameIndentMultiplier = buttonNumber.length() < 3 ? 1.5 : 1.3;
+    Font font2 (juce::jmax(button.getHeight () * 0.2f, 16.f));
+    g.setFont (font2);
+    g.setColour (button.getToggleState () ? Colours::white : Colour(0xffc5c5c5));
+    g.drawFittedText (buttonName1,
+      leftIndent, (buttonHeight / 4) + yIndent, buttonWidth - leftIndent, buttonHeight/4,
+      Justification::left, rows, 1.0f);
+
+    g.setFont(font2.withHeight(font2.getHeight() * 1.5f));
+    g.drawFittedText (buttonText,
+      leftIndent, (buttonHeight / 2) + yIndent, buttonWidth - leftIndent, buttonHeight/3,
+      Justification::left, rows, 0.8f);
+
+	}
+
+  void drawButtonBackground (juce::Graphics& g, juce::Button& button, const juce::Colour&,
+                              bool isButtonHighlighted, bool isButtonDown) {
+    auto buttonArea = button.getLocalBounds().toFloat();
+    float borderSize = buttonArea.getHeight() * ((button.getProperties()["thickBorder"]) ? 0.04 : 0.02);
+    float cornerSize = buttonArea.getHeight() * 0.05;
+    Colour buttonColor = Colour::fromString(button.getProperties()["colour"].toString());
+    Colour borderColour = Colour::fromString(button.getProperties()["borderColor"].toString());
+    Colour activeColour;
+
+    /*
+    if (button.getToggleState()) {
+      g.setColour (Colour(0xff6a6a6a));
+    } else if (isButtonHighlighted && !isButtonDown) {
+      g.setColour (Colour(0xff2f2f2f));
+    } else if (isButtonDown) {
+      g.setColour (Colour(0xff9a9a9a));
+    } else {
+      g.setColour (buttonColor);
+    }   
+    g.fillRoundedRectangle (buttonArea, cornerSize);
+    g.setColour(Colours::black.withAlpha(0.2f));
+    g.fillRoundedRectangle (buttonArea.withHeight(buttonArea.getHeight() / 2.0f), cornerSize);
+    g.setColour(buttonColor);
+    g.fillRect(buttonArea.withSizeKeepingCentre(buttonArea.getWidth(), buttonArea.getHeight() / 2.0f));
+    if (button.getToggleState()) {
+      g.setColour (Colours::white);
+      buttonArea = buttonArea.withSizeKeepingCentre(buttonArea.getWidth() - borderSize, buttonArea.getHeight() - borderSize);      
+      g.drawRoundedRectangle (buttonArea, cornerSize, borderSize);  
+    }  
+    */
+   if (button.getToggleState()) {
+      if (buttonColor == Colour::fromString(DEFAULT_SUBBUTTON_COLOR)) {
+        activeColour = Colour(0xff6A6A6A);
+        //g.setColour (activeColour);
+      } else {
+        activeColour = buttonColor;
+        //g.setColour (buttonColor);
+      }      
+    } else if (isButtonHighlighted && !isButtonDown) {
+      if (buttonColor == Colour::fromString(DEFAULT_SUBBUTTON_COLOR)) {
+        activeColour = buttonColor.withBrightness(buttonColor.getBrightness() + 0.1f);
+      } else {
+        activeColour = buttonColor.withBrightness(buttonColor.getBrightness() - 0.1f);
+      }
+    } else if (isButtonDown) {
+      activeColour = Colour(0xff9a9a9a);
+    } else {
+      activeColour = buttonColor;
+    } 
+    g.setColour(activeColour);  
+    g.fillRoundedRectangle (buttonArea, cornerSize);  
+    g.setColour(Colours::black.withAlpha(0.2f));
+    g.fillRoundedRectangle (buttonArea.withHeight(buttonArea.getHeight() / 2.0f), cornerSize);
+    g.setColour(activeColour);
+    g.fillRect(buttonArea.withSizeKeepingCentre(buttonArea.getWidth(), buttonArea.getHeight() / 2.0f));
+    if (button.getToggleState()) {
+      g.setColour (borderColour);
+      buttonArea = buttonArea.withSizeKeepingCentre(buttonArea.getWidth() - borderSize, buttonArea.getHeight() - borderSize);
+      g.drawRoundedRectangle (buttonArea, cornerSize, borderSize);    
+    }           
+  }
+};
+
+class hudTitleLookAndFeel : public LookAndFeel_V4 {
+public:
+  void drawLabel (Graphics& g, Label& label) {
+    int leftIndent = label.getHeight() / 4;
+    g.setFont (Font (label.getHeight() * 0.85f, Font::plain).withTypefaceStyle ("Regular"));
+    g.setColour (Colours::white);
+    g.drawFittedText (label.getText(),
+				leftIndent, 0, label.getWidth(), label.getHeight(),
+				Justification::centredLeft, 1, 1.0f);
+  }
+};
+
 class blankButtonLookAndFeel : public LookAndFeel_V4 {
 public:
 	void drawButtonText (Graphics&, TextButton&, bool, bool) {};
@@ -185,7 +320,7 @@ public:
       Font font1 (juce::jmax(button.getHeight () * 0.4f, 16.f));
 		  g.setFont (font1);
       int numberWidth = (int) font1.getStringWidthFloat(button.getName());  // Base width on 2 digits
-      auto buttonNumber = button.getProperties()["displayIndex"];
+      auto buttonNumber = button.getProperties()["index"];
       g.drawFittedText (buttonNumber,
       leftIndent*4, yIndent, numberWidth, button.getHeight () - yIndent * 2,
       Justification::right, rows, 0.5f);

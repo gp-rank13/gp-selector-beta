@@ -12,6 +12,9 @@ Colour chordProChordColor = Colour::fromString(CP_DARK_CHORD_COLOR);
 Colour viewPortBackground = Colour::fromString(BACKGROUND_COLOR);
 float chordProFontSize = CP_DEFAULT_FONT_SIZE;
 bool chordProMonospaceFont = false;
+bool zeroBasedNumbers = false;
+int displayCount = 0;
+int activeDisplay = 0;
 
 ExtensionWindow::ExtensionWindow ()
 {
@@ -44,6 +47,13 @@ ExtensionWindow::ExtensionWindow ()
     clock->setEditable (false, false, false);
     clock->setLookAndFeel(headerLnF);
     clock->setVisible(false);
+
+    hudTitle.reset (new Label ("hudTitle", "Title : Subtitle"));
+    //hudTitle->setFont (Font (80.00f, Font::plain).withTypefaceStyle ("Regular"));
+    //hudTitle->setJustificationType (Justification::left);
+    hudTitle->setLookAndFeel(hudTitleLnF);
+    hudTitle->setEditable (false, false, false);
+    hudTitle->setVisible(true);
 
     Path p;
     p.loadPathFromData (sidePanelOpenPathData, sizeof (sidePanelOpenPathData));
@@ -165,6 +175,14 @@ ExtensionWindow::ExtensionWindow ()
     addAndMakeVisible (fitHeightButton.get());
     fitHeightButton->setVisible(false);
 
+    Path p13;
+    p13.loadPathFromData (closePathData, sizeof (closePathData));
+    hudCloseButton.reset (new ShapeButton ( "hudCloseButton", Colours::white, Colours::lightgrey, Colours::white ));
+    hudCloseButton->setShape (p13, true, true, false);
+    hudCloseButton->addListener (this);
+    addAndMakeVisible (hudCloseButton.get());
+    hudCloseButton->setVisible(false);
+
     btnCurrent.reset (new TextButton ("btnCurrent"));
     btnCurrent->setLookAndFeel(minimalistSongLnF);
     btnCurrent->setButtonText ("");
@@ -223,14 +241,13 @@ ExtensionWindow::ExtensionWindow ()
     missingImageContainer.addAndMakeVisible(missingImageLabel.get());
 
     for (int i = 0; i < DEFAULT_RACKSPACES_SONGS; ++i) {
-        std::string number = std::to_string(i);
-        std::string name = std::string(2 - number.length(), '0') + std::to_string(i); // Pad with leading zero
+        String number = String(i);
+        String name = number;
         auto button = new TextButton(name); 
         buttons.add(button);
         buttons[i]->setClickingTogglesState(true);
         buttons[i]->setRadioGroupId(1);
         buttons[i]->getProperties().set("index", i);
-        buttons[i]->getProperties().set("displayIndex", i + 1); // Default to non zero-based
         buttons[i]->getProperties().set("type", "button"); 
         buttons[i]->setTriggeredOnMouseDown(true);
         buttons[i]->addListener(this);  
@@ -238,14 +255,13 @@ ExtensionWindow::ExtensionWindow ()
     buttons[0]->setToggleState (true, dontSendNotification);
 
     for (int i = 0; i < DEFAULT_VARIATIONS_SONGPARTS; ++i) {
-        std::string number = std::to_string(i);
+        String number = String(i);
         auto button = new TextButton(number); 
         subButtons.add(button);
         subButtons[i]->setLookAndFeel(subButtonsLnF);
         subButtons[i]->setClickingTogglesState(true);
         subButtons[i]->setRadioGroupId(2);
         subButtons[i]->getProperties().set("index", i);
-        subButtons[i]->getProperties().set("displayIndex", i + 1); // Default to non zero-based
         subButtons[i]->getProperties().set("type", "subButton"); 
         subButtons[i]->setTriggeredOnMouseDown(true);
         subButtons[i]->addListener(this);  
@@ -263,9 +279,29 @@ ExtensionWindow::ExtensionWindow ()
         subButtons[i]->setVisible(false);
     }
 
+    //HUD
+    for (int i = 0; i < DEFAULT_RACKSPACES_SONGS; ++i) {
+        String number = String(i);
+        String name = number; 
+        auto button = new TextButton(name); 
+        hudButtons.add(button);
+        hudButtons[i]->setLookAndFeel(hudLnF);
+        hudButtons[i]->setClickingTogglesState(true);
+        hudButtons[i]->setRadioGroupId(3);
+        hudButtons[i]->getProperties().set("index", i);
+        hudButtons[i]->getProperties().set("type", "button"); 
+        hudButtons[i]->setTriggeredOnMouseDown(true);
+        hudButtons[i]->addListener(this);  
+    }
+
+    for (int i = 0; i < hudButtons.size(); ++i) {
+        hudMainContent.addAndMakeVisible(hudButtons[i]);
+        hudButtons[i]->setVisible(false);
+    }
+
     // ChordPro
     for (auto i = 0; i < 100; ++i) {
-        std::string number = std::to_string(i);
+        String number = String(i);
         auto label = new Label(number, number); 
         chordProLines.add(label);
         chordProLines[i]->setEditable (false, false, false);
@@ -276,7 +312,7 @@ ExtensionWindow::ExtensionWindow ()
 
     // ChordPro Images
     for ( auto i = 0; i < CP_DEFAULT_IMAGES; ++i) {
-        auto imageComponent = new ImageComponent(std::to_string(i));
+        auto imageComponent = new ImageComponent(String(i));
         chordProImages.add(imageComponent);
         chordProContainer.addAndMakeVisible(chordProImages[i]);
     }
@@ -302,12 +338,42 @@ ExtensionWindow::ExtensionWindow ()
     extensionWindow->setResizable(true, true);
     extensionWindow->setUsingNativeTitleBar(true);
 
-    hud.reset (new HUDContainer());
-    hud->addToDesktop (ComponentPeer::windowIsTemporary);
-    Rectangle<int> bounds = Desktop::getInstance().getDisplays().getTotalBounds(false);
-    hud->setBounds (bounds);
-    hud->setAlwaysOnTop (true);
-    hud->setVisible (false);
+    //hud.reset (new HUDContainer());
+    //hud->addToDesktop (ComponentPeer::windowIsTemporary);
+    //Rectangle<int> bounds = Desktop::getInstance().getDisplays().getTotalBounds(false);
+    displayCount = Desktop::getInstance().getDisplays().getRectangleList(false).getNumRectangles();
+
+    for (int i = 0; i < 5; ++i) {
+        String name = String(i + 1);
+        auto button = new TextButton(name); 
+        displayButtons.add(button);
+        displayButtons[i]->setClickingTogglesState(true);
+        displayButtons[i]->setRadioGroupId(4);
+        displayButtons[i]->getProperties().set("index", i);
+        displayButtons[i]->getProperties().set("type", "displayButton"); 
+        displayButtons[i]->setTriggeredOnMouseDown(true);
+        displayButtons[i]->addListener(this); 
+        hudContainer.addAndMakeVisible(displayButtons[i]);
+        displayButtons[i]->setVisible(i < displayCount);
+    }
+    displayButtons[0]->setToggleState (true, dontSendNotification);
+    Rectangle<int> bounds = Desktop::getInstance().getDisplays().getRectangleList(false).getRectangle(activeDisplay);
+    //hud->setBounds (bounds);
+    //hud->setAlwaysOnTop (true);
+    //hud->setVisible (false);
+    hudContainer.addAndMakeVisible(hudCloseButton.get());
+    hudContainer.addAndMakeVisible(hudTitle.get());
+    hudContainer.addToDesktop(ComponentPeer::windowIsTemporary);
+    hudContainer.setBounds (bounds);
+    hudContainer.setAlwaysOnTop (true);
+    hudContainer.setVisible (false);
+    hudContainer.addAndMakeVisible(viewportHud);
+    viewportHud.setViewedComponent(&hudMainContent, false);
+    viewportHud.getVerticalScrollBar().setColour(ScrollBar::thumbColourId, Colour::fromString(BACKGROUND_COLOR));
+
+    
+
+    
 
     setSize (Rectangle<int>::fromString(DEFAULT_WINDOW_POSITION).getWidth(), 
              Rectangle<int>::fromString(DEFAULT_WINDOW_POSITION).getHeight()
@@ -476,6 +542,33 @@ void ExtensionWindow::resized()
         }
     }
 
+    // HUD
+    int hudColumns = 6;
+    int hudPadding = padding * 2;
+    int hudButtonDisplayCount = 0;
+    scrollbarBuffer = 10;
+    for (int i = 0; i < hudButtons.size(); ++i) {
+        if (hudButtons[i]->isVisible()) ++hudButtonDisplayCount;
+    }
+    int hudRows = hudButtonDisplayCount / hudColumns;
+    //Rectangle<int> hudParentBounds = Desktop::getInstance().getDisplays().getTotalBounds(false);
+    Rectangle<int> hudParentBounds = Desktop::getInstance().getDisplays().getRectangleList(false).getRectangle(activeDisplay);
+    int hudFilterWidth = hudParentBounds.getWidth() / 6;
+    int hudTitleHeight = hudParentBounds.getWidth() * 0.05;
+    int hudSize = (hudParentBounds.getWidth() - hudFilterWidth - (scrollbarBuffer * 3)) / hudColumns;
+    int hudHeight = hudSize * 0.4;
+    for (int i = 0; i < hudButtons.size(); ++i) {
+        hudButtons[i]->setBounds (hudSize * (i % hudColumns) + hudPadding,
+                                    hudHeight * (i / hudColumns) + hudPadding,
+                                    hudSize - hudPadding,
+                                    hudHeight - hudPadding);
+    }
+    hudCloseButton->setBounds(hudParentBounds.getWidth() - hudTitleHeight, hudTitleHeight * 0.2, hudTitleHeight * 0.7, hudTitleHeight * 0.7);
+   
+    for (int i = 0; i < displayButtons.size(); ++i) { 
+        displayButtons[i]->setBounds(10 + (40 * i), 200, 40, 40);
+    }
+
     container.setBounds(0, 50, juce::jmax (minWindowWidth-10, x - 10), (buttonHeight * rowCount) + padding);
     containerRight.setBounds(juce::jmax (minWindowWidth-10, x - 10), 50, getWidth()- juce::jmax (minWindowWidth, x), getHeight() - HEADER_HEIGHT);
     fontButtonContainer.setBounds(getWidth() - 300, HEADER_HEIGHT, 290, HEADER_HEIGHT);
@@ -500,6 +593,10 @@ void ExtensionWindow::resized()
    
     draggableResizer.setVisible(displayRightPanel);
     viewportRight.setVisible(displayRightPanel);
+    //hud->setBounds(hudParentBounds);
+    hudTitle->setBounds(0, 0, hudParentBounds.getWidth() - 100, hudTitleHeight);
+    hudMainContent.setBounds(hudFilterWidth, hudTitleHeight, hudParentBounds.getWidth() - hudFilterWidth - scrollbarBuffer, (hudHeight * (hudRows + 1)) + hudPadding);
+    viewportHud.setBounds(hudFilterWidth, hudTitleHeight, hudParentBounds.getWidth() - hudFilterWidth, hudParentBounds.getHeight() - hudTitleHeight);
 
     if (chordProForCurrentSong && viewportRight.isVisible()) {
         float runningHeight = 0.0;
@@ -579,25 +676,27 @@ void ExtensionWindow::refreshUI() {
     extension->btnNext->setButtonText("");
 
     if (lib->inSetlistMode()) {
-            int songIndex = lib->getCurrentSongIndex();
-            updateButtonLabel(SONG_TITLE);
-            setTitleBarName(SONG_WINDOW_TITLE);
-            updateButtonNames(lib->getSongNames());
-            updateSubButtonNames(lib->getSongPartNames(songIndex));
-            selectButton(lib->getCurrentSongIndex());
-            selectSubButton(lib->getCurrentSongpartIndex());
-            chordProReadFile(songIndex);
+        int songIndex = lib->getCurrentSongIndex();
+        int songPartIndex = lib->getCurrentSongpartIndex();
+        updateButtonLabel(SONG_TITLE);
+        setTitleBarName(SONG_WINDOW_TITLE);
+        updateButtonNames(lib->getSongNames());
+        updateSubButtonNames(lib->getSongPartNames(songIndex));
+        selectButton(songIndex);
+        selectSubButton(songPartIndex);
+        chordProReadFile(songIndex);
     } else {
-            int rackspaceIndex = lib->getCurrentRackspaceIndex();
-            updateButtonLabel(RACKSPACE_TITLE);
-            setTitleBarName(RACKSPACE_WINDOW_TITLE);
-            updateButtonNames(lib->getRackspaceNames());
-            updateSubButtonNames(lib->getVariationNames(rackspaceIndex));
-            selectButton(rackspaceIndex);
-            selectSubButton(lib->getCurrentVariationIndex());
-            extension->chordProForCurrentSong = false;
-            extension->chordProReset();
-            extension->chordProDisplayGUI(false);
+        int rackspaceIndex = lib->getCurrentRackspaceIndex();
+        int variationIndex = lib->getCurrentVariationIndex();
+        updateButtonLabel(RACKSPACE_TITLE);
+        setTitleBarName(RACKSPACE_WINDOW_TITLE);
+        updateButtonNames(lib->getRackspaceNames());
+        updateSubButtonNames(lib->getVariationNames(rackspaceIndex));
+        selectButton(rackspaceIndex);
+        selectSubButton(variationIndex);
+        extension->chordProForCurrentSong = false;
+        extension->chordProReset();
+        extension->chordProDisplayGUI(false);
     }
     extension->resized();
 }
@@ -608,16 +707,19 @@ void ExtensionWindow::setTitleBarName(const String& name) {
 
 void ExtensionWindow::setZeroBasedNumbering(bool zeroBased) {
     extension->preferences->setProperty("ZeroBasedNumbers", zeroBased); 
+    zeroBasedNumbers = zeroBased;
+    /*
     int offset = zeroBased ? 0 : 1;
     for (int i = 0; i < extension->buttons.size(); ++i) {
         extension->buttons[i]->getProperties().set("displayIndex", i + offset);
     }
+    */
     extension->resized();
 }
 
 void ExtensionWindow::toggleZeroBasedNumbering() {
     bool status = extension->preferences->getProperty("ZeroBasedNumbers");
-    extension->preferences->setProperty("ZeroBasedNumbers", !status); 
+    //extension->preferences->setProperty("ZeroBasedNumbers", !status); 
     setZeroBasedNumbering(!status);
 }
 
@@ -759,17 +861,15 @@ void ExtensionWindow::selectSubButton(int index) {
 void ExtensionWindow::addButtons(int count) {
     int buttonCount = extension->buttons.size();
     int index;
-    int offset = extension->preferences->getProperty("ZeroBasedNumbers") ? 0 : 1;
     for (auto i = 0; i < count; ++i) {
         index = buttonCount + i;
-        std::string number = std::to_string(index);
+        String number = String(index);
         auto button = new TextButton(number); 
         extension->buttons.add(button);
         extension->buttons[index]->setLookAndFeel(extension->buttonsLnF);
         extension->buttons[index]->setClickingTogglesState(true);
         extension->buttons[index]->setRadioGroupId(1);
         extension->buttons[index]->getProperties().set("index", index);
-        extension->buttons[index]->getProperties().set("displayIndex", index + offset);
         extension->buttons[index]->getProperties().set("type", "button"); 
         extension->buttons[index]->setTriggeredOnMouseDown(true);
         extension->buttons[index]->addListener(extension);  
@@ -777,7 +877,7 @@ void ExtensionWindow::addButtons(int count) {
     }
 }
 
-void ExtensionWindow::updateButtonNames(std::vector<std::string> buttonNames) {
+void ExtensionWindow::updateButtonNames(StringArray buttonNames) {
     int newButtonCount = buttonNames.size();
     int currentButtonCount = extension->buttons.size();
     bool border = extension->preferences->getProperty("ThickBorders");
@@ -799,7 +899,7 @@ void ExtensionWindow::updateButtonNames(std::vector<std::string> buttonNames) {
     extension->resized();
  }
 
-void ExtensionWindow::compareButtonNames(std::vector<std::string> newButtonNames) {
+void ExtensionWindow::compareButtonNames(StringArray newButtonNames) {
     int buttonCount = extension->buttons.size();
     int newButtonCount = newButtonNames.size();
     int visibleButtons = getVisibleButtonCount();
@@ -817,17 +917,15 @@ void ExtensionWindow::compareButtonNames(std::vector<std::string> newButtonNames
 void ExtensionWindow::addSubButtons(int count) {
     int buttonCount = extension->subButtons.size();
     int index;
-    int offset = extension->preferences->getProperty("ZeroBasedNumbers") ? 0 : 1;
     for (auto i = 0; i < count; ++i) {
         index = buttonCount + i;
-        std::string number = std::to_string(index);
+        String number = String(index);
         auto button = new TextButton(number); 
         extension->subButtons.add(button);
         extension->subButtons[index]->setLookAndFeel(extension->subButtonsLnF);
         extension->subButtons[index]->setClickingTogglesState(true);
         extension->subButtons[index]->setRadioGroupId(2);
         extension->subButtons[index]->getProperties().set("index", index);
-        extension->subButtons[index]->getProperties().set("displayIndex", index + offset);
         extension->subButtons[index]->getProperties().set("type", "subButton"); 
         extension->subButtons[index]->setTriggeredOnMouseDown(true);
         extension->subButtons[index]->addListener(extension);  
@@ -835,7 +933,7 @@ void ExtensionWindow::addSubButtons(int count) {
     }
 }
 
-void ExtensionWindow::updateSubButtonNames(std::vector<std::string> buttonNames) {
+void ExtensionWindow::updateSubButtonNames(StringArray buttonNames) {
     int newButtonCount = buttonNames.size();
     int currentButtonCount = extension->subButtons.size();
     bool border = extension->preferences->getProperty("ThickBorders");
@@ -876,7 +974,7 @@ void ExtensionWindow::updateSubButtonNames(std::vector<std::string> buttonNames)
     extension->resized();
  }
 
- void ExtensionWindow::compareSubButtonNames(std::vector<std::string> newButtonNames) {
+ void ExtensionWindow::compareSubButtonNames(StringArray newButtonNames) {
     int buttonCount = extension->subButtons.size();
     int visibleButtons = getVisibleSubButtonCount();
     int newButtonCount = newButtonNames.size();
@@ -885,7 +983,7 @@ void ExtensionWindow::updateSubButtonNames(std::vector<std::string> buttonNames)
             refreshUI();
         } else {
             for (auto i = 0; i < newButtonCount; ++i) {
-                if (i < buttonCount && newButtonNames[i] != extension->subButtons[i]->getProperties()["name"]) {
+                if (i < buttonCount && newButtonNames[i].toStdString() != extension->subButtons[i]->getProperties()["name"]) {
                     refreshUI();
                 }
             }
@@ -893,8 +991,8 @@ void ExtensionWindow::updateSubButtonNames(std::vector<std::string> buttonNames)
     }
 }
 
-std::vector<std::string> ExtensionWindow::getSubButtonNamesByIndex(int index) {
-    std::vector<std::string> names;
+StringArray ExtensionWindow::getSubButtonNamesByIndex(int index) {
+    StringArray names;
     if (lib->inSetlistMode()) {
         names = lib->getSongPartNames(index);
     } else {
@@ -928,6 +1026,27 @@ void ExtensionWindow::updateViewportPositionForSubButtons() {
         int adjY = (viewH - totalH > 0) ? (viewH - totalH) : 0;
         extension->viewport.setViewPosition(0, (btnY - adjY) > 0 ? (btnY - adjY) : 0);
     } 
+}
+
+void ExtensionWindow::addHudButtons(int count) {
+    lib->consoleLog("Add hud buttons: " + std::to_string(count));
+    int buttonCount = extension->hudButtons.size();
+    int index;
+    for (auto i = 0; i < count; ++i) {
+        index = buttonCount + i;
+        String number = String(index);
+        auto button = new TextButton(number); 
+        extension->hudButtons.add(button);
+        extension->hudButtons[index]->setLookAndFeel(extension->hudLnF);
+        extension->hudButtons[index]->setClickingTogglesState(true);
+        extension->hudButtons[index]->setRadioGroupId(3);
+        extension->hudButtons[index]->getProperties().set("index", index);
+        extension->hudButtons[index]->getProperties().set("type", "button"); 
+        extension->hudButtons[index]->setTriggeredOnMouseDown(true);
+        extension->hudButtons[index]->addListener(extension);  
+        //extension->hudContainer.addAndMakeVisible(extension->hudButtons[index]);
+        extension->hudMainContent.addAndMakeVisible(extension->hudButtons[index]);
+    }
 }
 
 void ExtensionWindow::buttonClicked (Button* buttonThatWasClicked)
@@ -1004,7 +1123,7 @@ void ExtensionWindow::buttonClicked (Button* buttonThatWasClicked)
         bool inSetlist = lib->inSetlistMode();
         int currentGPIndex = (inSetlist ? lib->getCurrentSongIndex() : lib->getCurrentRackspaceIndex());
         int buttonIndex = buttonThatWasClicked->getProperties()["index"];
-        std::vector<std::string> blank;
+        StringArray blank;
 
         // Ensure other buttons are deselected
         for (int i = 0; i < buttons.size(); ++i) {
@@ -1046,7 +1165,7 @@ void ExtensionWindow::buttonClicked (Button* buttonThatWasClicked)
         int buttonIndex = getButtonSelected();
         if (lib->inSetlistMode()) {
             lib->switchToSong(buttonIndex, subButtonIndex);
-            std::string songpartName = lib->getSongpartName(buttonIndex, subButtonIndex);
+            String songpartName = lib->getSongpartName(buttonIndex, subButtonIndex);
             chordProScrollToSongPart(songpartName);
         } else {
             lib->switchToRackspace(buttonIndex, subButtonIndex);
@@ -1105,6 +1224,16 @@ void ExtensionWindow::buttonClicked (Button* buttonThatWasClicked)
         createInvertedImage->setVisible(false);
         extension->repaint();
         imageTimer.startTimer(300);
+    } else if (buttonThatWasClicked == hudCloseButton.get()) {
+        hudContainer.setVisible(false);
+        lib->setWidgetValue(WIDGET_HUD, 0.0);
+    } else if (buttonThatWasClicked->getProperties()["type"] == "displayButton") {
+        int index = buttonThatWasClicked->getProperties()["index"];
+        activeDisplay = index;
+        lib->consoleLog("Display button: " + std::to_string(index));
+        Rectangle<int> bounds = Desktop::getInstance().getDisplays().getRectangleList(false).getRectangle(activeDisplay);
+        extension->hudContainer.setBounds(bounds);
+        extension->resized();
     }
 }
 
@@ -1153,17 +1282,20 @@ void ExtensionWindow::finalize()
 
 void ExtensionWindow::displayHUD(bool display)
 {
-    if (extension->hud != nullptr)
-    {
+    //if (extension->hud != nullptr)
+    //{
         MessageManager::getInstance()->callAsync([display]() {
                                                         
-                                                        extension->hud->setVisible(false);
+                                                        //extension->hud->setVisible(false);
+                                                        extension->hudContainer.setVisible(false);
                                                         if (display) {
-                                                            extension->hud->setVisible(true);
+                                                            //extension->hud->setVisible(true);
+                                                            extension->hudContainer.setVisible(true);
+                                                            updateHUDButtons();
                                                         }
                                                       
                                                     });
-    }
+    //}
 }
 
 void ExtensionWindow::processPreferencesDefaults(StringPairArray prefs) {
@@ -1195,6 +1327,95 @@ void ExtensionWindow::updateClock(const String& formattedTime) {
     extension->clock->setText(formattedTime, dontSendNotification);
 }
 
+void ExtensionWindow::updateHudLabel(String title, String subtitle) {
+    extension->hudTitle->setText(title + " : " + subtitle, dontSendNotification);
+}
+
+void ExtensionWindow::updateHUDButtons() {
+    bool inSetlist = lib->inSetlistMode();
+    int parentCount = inSetlist ? lib->getSongCount() : lib->getRackspaceCount();
+    bool border = extension->preferences->getProperty("ThickBorders");
+    String borderColor = extension->preferences->getProperty("BorderColor");
+    StringArray parentNames;
+    Array<StringArray> childNames;
+    int childCount = 0;
+    //StringArray allChildNames;
+    for (int i = 0; i < parentCount; ++i) {
+        parentNames.add(inSetlist ? lib->getSongName(i) : lib->getRackspaceName(i));
+
+        childNames.add(inSetlist ? lib->getSongPartNames(i) : lib->getVariationNames(i));
+        childCount += childNames[i].size();
+
+    }
+    StringArray childNamesWords;
+    StringArray children;
+    StringArray words;
+    for (int i = 0; i < childNames.size(); ++i) {
+        children.addArray(childNames[i]);
+    }
+    for (int i = 0; i < children.size(); ++i) {
+        words = StringArray::fromTokens(children[i]," ","");
+        childNamesWords.addArray(words);
+    }
+    StringArray distinctChildNamesWords = childNamesWords;
+    distinctChildNamesWords.removeDuplicates(true);
+    for (int i = 0; i < distinctChildNamesWords.size(); ++i) {
+        int count = 0;
+        for (int j = 0; j < childNamesWords.size(); ++j) {
+            if (childNamesWords[j] == distinctChildNamesWords[i]) {
+                ++count;
+            }
+        }
+        extension->log(distinctChildNamesWords[i] + ": " + String(count));
+    }
+    
+    //int newButtonCount = childCount;
+    int currentButtonCount = extension->hudButtons.size();
+    if (childCount > currentButtonCount) {
+        addHudButtons(childCount-currentButtonCount);
+        currentButtonCount = childCount;
+    }
+    int runningCount = 0;
+    StringArray keys = extension->buttonColors.getAllKeys();
+    for (int i = 0; i < parentNames.size(); ++i) {
+        //if (i < newButtonCount) {
+        StringArray names = childNames[i];
+        for (int j = 0; j < names.size(); ++j) {
+            //String name = allChildNames[i];
+            String color = DEFAULT_SUBBUTTON_COLOR;
+            extension->hudButtons[runningCount]->setButtonText(names[j]);
+            extension->hudButtons[runningCount]->getProperties().set("index", String(j));
+            extension->hudButtons[runningCount]->getProperties().set("parent", parentNames[i]);
+            extension->hudButtons[runningCount]->getProperties().set("parentIndex", String(i));
+            extension->hudButtons[runningCount]->setVisible(true);
+            for (int k = 0; k < keys.size(); ++k ) {
+                if (names[j].contains(keys[k])) {
+                    color = extension->buttonColors.getValue(keys[k],"");
+                    if (extension->preferences->getProperty("RemoveColorKeywordFromName")) {
+                        names[j].replace(keys[k], "");
+                        names[j].replace("  ", " ");
+                        extension->hudButtons[runningCount]->setButtonText(names[j]);
+                    }
+                }
+            }
+            extension->hudButtons[runningCount]->getProperties().set("colour", color);
+            extension->hudButtons[runningCount]->getProperties().set("thickBorder", border);
+            extension->hudButtons[runningCount]->getProperties().set("borderColor", borderColor);
+            runningCount++;
+        } 
+    }
+    if (childCount < currentButtonCount) {
+        for (int i = childCount - 1; i < currentButtonCount; ++i) {
+                extension->hudButtons[i]->setButtonText("");
+                extension->hudButtons[i]->setVisible(false);
+                extension->hudButtons[i]->getProperties().set("colour", DEFAULT_SUBBUTTON_COLOR);
+                extension->hudButtons[i]->getProperties().set("parentName", "");
+                extension->hudButtons[i]->getProperties().set("parentIndex", "");
+        }
+    }
+    extension->resized();
+}
+
 void ExtensionWindow::chordProScrollWindow(double value) {
     Point<int> viewportPosition = extension->viewportRight.getViewPosition();
     Rectangle<int> viewportBounds = extension->viewportRight.getViewArea();
@@ -1218,10 +1439,10 @@ void ExtensionWindow::chordProDown() {
 
 }
 
-void ExtensionWindow::chordProScrollToSongPart(std::string songPartName) {
+void ExtensionWindow::chordProScrollToSongPart(String songPartName) {
     for (int i = 0; i < extension->chordProLines.size(); ++i) { 
         if (extension->chordProLines[i]->getProperties()["type"] == "gp_songpartname") {
-            if (extension->chordProLines[i]->getText().toStdString() == songPartName) {
+            if (extension->chordProLines[i]->getText() == songPartName) {
                 Rectangle<int> buttonBounds = extension->chordProLines[i]->getBounds();
                 extension->viewportRight.setViewPosition(0, buttonBounds.getY());
             }
@@ -1229,7 +1450,7 @@ void ExtensionWindow::chordProScrollToSongPart(std::string songPartName) {
     }
 }
 
-void ExtensionWindow::chordProProcessText(std::string text) {
+void ExtensionWindow::chordProProcessText(String text) {
     StringArray lines = StringArray::fromLines(text);
     String line;
     int firstLineWithContent = false;
@@ -1246,7 +1467,7 @@ void ExtensionWindow::chordProProcessText(std::string text) {
         int priorLines = extension->chordProLines.size();
         int newLines = lines.size() - priorLines + 1;
         for (int i = 0; i < newLines; ++i) { 
-            std::string number = std::to_string(priorLines + i);
+            String number = String(priorLines + i);
             auto label = new Label(number, number); 
             extension->chordProLines.add(label);
             extension->chordProLines[i]->setEditable (false, false, false);
@@ -1377,7 +1598,7 @@ void ExtensionWindow::chordProProcessText(std::string text) {
 
 void ExtensionWindow::chordProReadFile(int index) {
     std::string chordProFileText;
-    std::string chordProFile = lib->getChordProFilenameForSong(index);
+    String chordProFile = lib->getChordProFilenameForSong(index);
     extension->chordProForCurrentSong = (chordProFile == "") ? false : true;
     if (extension->chordProForCurrentSong) {
         File chordProFullPath = File(chordProFile);
@@ -1466,7 +1687,7 @@ void ExtensionWindow::chordProImagesCheckAndAdd(int index) {
     if (newCount > existingCount) {
         int newImages = newCount - existingCount;
         for (auto i = 0; i < newImages; ++i) {     
-            auto imageComponent = new ImageComponent(std::to_string(existingCount+i));
+            auto imageComponent = new ImageComponent(String(existingCount+i));
             chordProImages.add(imageComponent);
             chordProContainer.addAndMakeVisible(chordProImages[existingCount+i]);
         }
@@ -1527,7 +1748,7 @@ void ExtensionWindow::setSongLabel() {
     if (!lib->inSetlistMode()) return;
     int divider = extension->draggableResizer.getX();
     if (divider <= 10) {
-        std::string songName = lib->getSongName(lib->getCurrentSongIndex());
+        String songName = lib->getSongName(lib->getCurrentSongIndex());
         if (extension->header->getText().toStdString() != songName) {
             extension->header->setText(songName, dontSendNotification);
             extension->resized();
@@ -1540,14 +1761,19 @@ void ExtensionWindow::setSongLabel() {
     }
 }
 
-void MyDocumentWindow::closeButtonPressed () { 
-    ExtensionWindow::displayWindow(false);
+void ExtensionWindow::checkDisplayCount() {
+    int displays = Desktop::getInstance().getDisplays().getRectangleList(false).getNumRectangles();
+    if (displays != displayCount) {
+        displayCount = displays;
+        lib->consoleLog("New display count: " + std::to_string(displayCount));
+        for (int i = 0; i < extension->displayButtons.size(); ++i) { 
+            extension->displayButtons[i]->setVisible(i < displayCount);
+        }
+    }
 }
 
-void HUDContainer::paint (Graphics& g) {
-    auto area = getLocalBounds().toFloat();
-    g.setColour (Colour(0xdd151515));
-    g.fillRect(area);
+void MyDocumentWindow::closeButtonPressed () { 
+    ExtensionWindow::displayWindow(false);
 }
 
 void ClockTimer::timerCallback() {
@@ -1558,6 +1784,7 @@ void RefreshTimer::timerCallback() {
     ExtensionWindow::compareButtonNames(lib->inSetlistMode() ? lib->getSongNames() : lib->getRackspaceNames());
     ExtensionWindow::compareSubButtonNames(lib->inSetlistMode() ? lib->getSongPartNames(ExtensionWindow::getButtonSelected()) : lib->getVariationNames(ExtensionWindow::getButtonSelected()));
     ExtensionWindow::setSongLabel();
+    ExtensionWindow::checkDisplayCount();
 }
 
 void CreateImageTimer::timerCallback() {
