@@ -39,19 +39,19 @@ void LibMain::InvokeMenu(int index)
                       ExtensionWindow::displayWindow(true);
                      break;
                   case 1:
-                     ExtensionWindow::displayWindow(false);
-                     break;
-                  case 2:
                     ExtensionWindow::toggleZeroBasedNumbering();
                     break;
-                  case 3:
+                  case 2:
                     ExtensionWindow::toggleImmediateSwitching();
                     break;
-                  case 4:
+                  case 3:
                     ExtensionWindow::toggleLargeScrollArea();
                     break;
-                  case 5:
+                  case 4:
                     ExtensionWindow::toggleThickBorders();
+                    break;
+                  case 5:
+                    ExtensionWindow::toggleRackspaceVariationInSetlistMode();
                     break;
                   default:
                      break;   

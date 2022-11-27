@@ -12,6 +12,7 @@ Colour chordProChordColor = Colour::fromString(CP_DARK_CHORD_COLOR);
 Colour viewPortBackground = Colour::fromString(BACKGROUND_COLOR);
 float chordProFontSize = CP_DEFAULT_FONT_SIZE;
 bool chordProMonospaceFont = false;
+bool pinAlsoLocksSetlistMode = true;
 
 ExtensionWindow::ExtensionWindow ()
 {
@@ -556,6 +557,9 @@ void ExtensionWindow::resized()
 }
 
 void ExtensionWindow::refreshUI() {
+
+    if (!lib->inSetlistMode() && pinAlsoLocksSetlistMode) return;
+
     // Reset all buttons
     for (int i = 0; i < extension->buttons.size(); ++i) {
         extension->buttons[i]->setToggleState(false, dontSendNotification);
@@ -631,12 +635,24 @@ void ExtensionWindow::setLargeScrollArea(bool largeScrollArea) {
 void ExtensionWindow::toggleLargeScrollArea() {
     bool status = extension->preferences->getProperty("LargeScrollArea");
     extension->preferences->setProperty("LargeScrollArea", !status); 
-    extension->resized();   }
+    extension->resized();   
+}
 
 void ExtensionWindow::toggleThickBorders() {
     bool status = extension->preferences->getProperty("ThickBorders");
     extension->preferences->setProperty("ThickBorders", !status); 
     refreshUI();
+}
+
+void ExtensionWindow::displayRackspaceVariationInSetlistMode(bool display) {
+    extension->preferences->setProperty("RackspaceVariationInSetlistMode", display); 
+    extension->resized();    
+}
+
+void ExtensionWindow::toggleRackspaceVariationInSetlistMode() {
+    bool status = extension->preferences->getProperty("RackspaceVariationInSetlistMode");
+    extension->preferences->setProperty("RackspaceVariationInSetlistMode", !status); 
+    extension->resized();   
 }
 
 String ExtensionWindow::buttonName(int index) {
@@ -1154,6 +1170,7 @@ void ExtensionWindow::processPreferencesDefaults(StringPairArray prefs) {
     extension->preferences->setProperty("ThickBorders", prefs.getValue("ThickBorders", "") == "true" ? true : false);
     extension->preferences->setProperty("BorderColor", prefs.getValue("BorderColor", DEFAULT_BORDER_COLOR));
     extension->chordProDarkMode = prefs.getValue("ChordProDarkMode", "") == "true" ? true : false;
+    displayRackspaceVariationInSetlistMode(prefs.getValue("DisplayRackspaceVariationInSetlistMode", "") == "true" ? true : false);
 }
 
 void ExtensionWindow::processPreferencesColors(StringPairArray prefs) {
