@@ -10,9 +10,12 @@ LibMain* lib = new LibMain(nullptr);
 Colour chordProLyricColor = Colour::fromString(CP_DARK_LYRIC_COLOR);  
 Colour chordProChordColor = Colour::fromString(CP_DARK_CHORD_COLOR);
 Colour viewPortBackground = Colour::fromString(BACKGROUND_COLOR);
+Colour headerRackspaceColor = Colour::fromString(HEADER_RACKSPACE_COLOR);
+Colour headerSongColor = Colour::fromString(HEADER_SONG_COLOR);
 float chordProFontSize = CP_DEFAULT_FONT_SIZE;
+int headerHeight = HEADER_HEIGHT;
 bool chordProMonospaceFont = false;
-bool pinAlsoLocksSetlistMode = true;
+bool lockToSetlistMode = false;
 
 ExtensionWindow::ExtensionWindow ()
 {
@@ -30,7 +33,7 @@ ExtensionWindow::ExtensionWindow ()
     header.reset (new Label ("header", SONG_TITLE));
     addAndMakeVisible (header.get());
     header->setEditable (false, false, false);
-    header->setBounds (0, 0, getWidth(), HEADER_HEIGHT);
+    header->setBounds (0, 0, getWidth(), headerHeight);
     header->setFont (Font (25.00f, Font::plain).withTypefaceStyle ("Regular"));
     header->setLookAndFeel(headerRackspacesLnF);
     
@@ -368,7 +371,7 @@ void ExtensionWindow::resized()
                                : getWidth();
     
     // Width of 15 provides a wider area to select the resizer on touchscreens. The displayed width is overridden in the Paint method of MyDraggableComponent.
-    draggableResizer.setBounds (juce::jmax(minWindowWidth, x), HEADER_HEIGHT, PANE_SEPARATOR_WIDTH, getHeight()); 
+    draggableResizer.setBounds (juce::jmax(minWindowWidth, x), headerHeight, PANE_SEPARATOR_WIDTH, getHeight()); 
     int buttonDisplayCount = 0;
     for (int i = 0; i < buttons.size(); ++i) {
         if (buttons[i]->isVisible()) ++buttonDisplayCount;
@@ -397,8 +400,8 @@ void ExtensionWindow::resized()
     String headerLabel = header->getText();
     Font headerLabelFont = header->getFont();
     int headerLabelWidth = headerLabelFont.getStringWidth(headerLabel);
-    header->setBounds (0, 0, getWidth(), HEADER_HEIGHT);
-    clock->setBounds (getWidth()/2 - 50, 0, 100, HEADER_HEIGHT);
+    header->setBounds (0, 0, getWidth(), headerHeight);
+    clock->setBounds (getWidth()/2 - 50, 0, 100, headerHeight);
     clock->setVisible(getWidth() > 460 && clock->getX() > headerLabelWidth && containerRight.isVisible() ? true : false);
     if (chordProImagesOnly && getWidth() < 560) clock->setVisible(false);
     if (viewportRight.getWidth() <= 305 && viewportRight.isVisible()) fontButtonContainer.setVisible(false);
@@ -471,26 +474,26 @@ void ExtensionWindow::resized()
     }
 
     container.setBounds(0, 50, juce::jmax (minWindowWidth-10, x - 10), (buttonHeight * rowCount) + padding);
-    containerRight.setBounds(juce::jmax (minWindowWidth-10, x - 10), 50, getWidth()- juce::jmax (minWindowWidth, x), getHeight() - HEADER_HEIGHT);
-    fontButtonContainer.setBounds(getWidth() - 300, HEADER_HEIGHT, 290, HEADER_HEIGHT);
-    missingImageContainer.setBounds(getWidth() - 350, HEADER_HEIGHT, 340, HEADER_HEIGHT);
+    containerRight.setBounds(juce::jmax (minWindowWidth-10, x - 10), 50, getWidth()- juce::jmax (minWindowWidth, x), getHeight() - headerHeight);
+    fontButtonContainer.setBounds(getWidth() - 300, headerHeight, 290, headerHeight);
+    missingImageContainer.setBounds(getWidth() - 350, headerHeight, 340, headerHeight);
 
-    viewport.setBounds(0, HEADER_HEIGHT, juce::jmax (minWindowWidth, x), getHeight() - HEADER_HEIGHT);
+    viewport.setBounds(0, headerHeight, juce::jmax (minWindowWidth, x), getHeight() - headerHeight);
     viewport.setViewPosition(viewPos);
-    viewportRight.setBounds(juce::jmax (minWindowWidth, x), HEADER_HEIGHT, getWidth() - juce::jmax (minWindowWidth, x), getHeight() - HEADER_HEIGHT);
+    viewportRight.setBounds(juce::jmax (minWindowWidth, x), headerHeight, getWidth() - juce::jmax (minWindowWidth, x), getHeight() - headerHeight);
 
     btnCurrent->setBounds (0 , containerRight.getHeight()/4, containerRight.getWidth(), containerRight.getHeight()/2);
     btnPrev->setBounds (10 , 10, containerRight.getWidth()-10, containerRight.getHeight()/4);
     btnNext->setBounds (10 , containerRight.getHeight()*3/4, containerRight.getWidth()-10, containerRight.getHeight()/4);
-    btnModeSwitch->setBounds (15, 0, getWidth() > 230 ? 120 : 60, HEADER_HEIGHT);
+    btnModeSwitch->setBounds (15, 0, getWidth() > 230 ? 120 : 60, headerHeight);
 
-    fontDown->setBounds (80,5,50,HEADER_HEIGHT-10);
-    fontUp->setBounds (140,5,50,HEADER_HEIGHT-10);
-    fontMono->setBounds (200,5,80,HEADER_HEIGHT-10);
-    fontPopOverLabel->setBounds (0, 0, 80, HEADER_HEIGHT);
+    fontDown->setBounds (80,5,50,headerHeight-10);
+    fontUp->setBounds (140,5,50,headerHeight-10);
+    fontMono->setBounds (200,5,80,headerHeight-10);
+    fontPopOverLabel->setBounds (0, 0, 80, headerHeight);
 
-    missingImageLabel->setBounds (0, 0, 240, HEADER_HEIGHT);
-    createInvertedImage->setBounds (240, 5, 90, HEADER_HEIGHT-10);
+    missingImageLabel->setBounds (0, 0, 240, headerHeight);
+    createInvertedImage->setBounds (240, 5, 90, headerHeight-10);
    
     draggableResizer.setVisible(displayRightPanel);
     viewportRight.setVisible(displayRightPanel);
@@ -558,7 +561,7 @@ void ExtensionWindow::resized()
 
 void ExtensionWindow::refreshUI() {
 
-    if (!lib->inSetlistMode() && pinAlsoLocksSetlistMode) return;
+    if (!lib->inSetlistMode() && lockToSetlistMode) return;
 
     // Reset all buttons
     for (int i = 0; i < extension->buttons.size(); ++i) {
@@ -644,6 +647,15 @@ void ExtensionWindow::toggleThickBorders() {
     refreshUI();
 }
 
+void ExtensionWindow::toggleLockToSetlistMode() {
+    lockToSetlistMode = !lockToSetlistMode;
+    if (!lib->inSetlistMode() && lockToSetlistMode) {
+        lib->switchToSetlistView();
+    } else if (!lib->inSetlistMode() && !lockToSetlistMode) {
+        lib->switchToPanelView();
+    }
+}
+
 void ExtensionWindow::displayRackspaceVariationInSetlistMode(bool display) {
     extension->preferences->setProperty("RackspaceVariationInSetlistMode", display); 
     extension->resized();    
@@ -702,6 +714,7 @@ int ExtensionWindow::getVisibleSubButtonCount() {
 }
 
 void ExtensionWindow::selectButton(int index) {
+    if (!lib->inSetlistMode() && lockToSetlistMode) return;
     if (index < extension->buttons.size() && index >= 0) {
         extension->buttons[index]->setToggleState(true, dontSendNotification);
         Rectangle<int> viewportBounds = extension->viewport.getViewArea();
@@ -759,6 +772,7 @@ bool ExtensionWindow::isSubButtonsCollapsed() {
 }
 
 void ExtensionWindow::selectSubButton(int index) {
+    if (!lib->inSetlistMode() && lockToSetlistMode) return;
     if (index < extension->subButtons.size() && index >= 0) {
         extension->subButtons[index]->setToggleState(true, dontSendNotification);
         updateViewportPositionForSubButtons();
@@ -787,6 +801,7 @@ void ExtensionWindow::addButtons(int count) {
 }
 
 void ExtensionWindow::updateButtonNames(std::vector<std::string> buttonNames) {
+    if (!lib->inSetlistMode() && lockToSetlistMode) return;
     int newButtonCount = buttonNames.size();
     int currentButtonCount = extension->buttons.size();
     bool border = extension->preferences->getProperty("ThickBorders");
@@ -845,6 +860,7 @@ void ExtensionWindow::addSubButtons(int count) {
 }
 
 void ExtensionWindow::updateSubButtonNames(std::vector<std::string> buttonNames) {
+    if (!lib->inSetlistMode() && lockToSetlistMode) return;
     int newButtonCount = buttonNames.size();
     int currentButtonCount = extension->subButtons.size();
     bool border = extension->preferences->getProperty("ThickBorders");
@@ -1009,6 +1025,7 @@ void ExtensionWindow::buttonClicked (Button* buttonThatWasClicked)
         }
         resized();
     } else if (buttonThatWasClicked->getProperties()["type"] == "button") {
+        if (!lib->inSetlistMode() && lockToSetlistMode) return;
         bool switchRackSongImmediately = preferences->getProperty("ImmediateSwitching");
         bool inSetlist = lib->inSetlistMode();
         int currentGPIndex = (inSetlist ? lib->getCurrentSongIndex() : lib->getCurrentRackspaceIndex());
@@ -1050,6 +1067,7 @@ void ExtensionWindow::buttonClicked (Button* buttonThatWasClicked)
         }
         prevButtonSelected = buttonIndex;
     } else if (buttonThatWasClicked->getProperties()["type"] == "subButton") {
+        if (!lib->inSetlistMode() && lockToSetlistMode) return;
         bool switchRackSongImmediately = preferences->getProperty("ImmediateSwitching");
         int subButtonIndex = buttonThatWasClicked->getProperties()["index"];
         int buttonIndex = getButtonSelected();
@@ -1171,6 +1189,8 @@ void ExtensionWindow::processPreferencesDefaults(StringPairArray prefs) {
     extension->preferences->setProperty("BorderColor", prefs.getValue("BorderColor", DEFAULT_BORDER_COLOR));
     extension->chordProDarkMode = prefs.getValue("ChordProDarkMode", "") == "true" ? true : false;
     displayRackspaceVariationInSetlistMode(prefs.getValue("DisplayRackspaceVariationInSetlistMode", "") == "true" ? true : false);
+    headerRackspaceColor = Colour::fromString(prefs.getValue("HeaderRackspaceColor", HEADER_RACKSPACE_COLOR));
+    headerSongColor = Colour::fromString(prefs.getValue("HeaderSongColor", HEADER_SONG_COLOR));
 }
 
 void ExtensionWindow::processPreferencesColors(StringPairArray prefs) {
@@ -1544,6 +1564,7 @@ void ClockTimer::timerCallback() {
 }
 
 void RefreshTimer::timerCallback() {
+    if (!lib->inSetlistMode() && lockToSetlistMode) return;
     ExtensionWindow::compareButtonNames(lib->inSetlistMode() ? lib->getSongNames() : lib->getRackspaceNames());
     ExtensionWindow::compareSubButtonNames(lib->inSetlistMode() ? lib->getSongPartNames(ExtensionWindow::getButtonSelected()) : lib->getVariationNames(ExtensionWindow::getButtonSelected()));
     ExtensionWindow::setSongLabel();

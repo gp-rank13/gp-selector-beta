@@ -117,6 +117,7 @@ public:
   void static toggleImmediateSwitching();
   void static toggleLargeScrollArea();  
   void static toggleThickBorders();  
+  void static toggleLockToSetlistMode();
   void static displayRackspaceVariationInSetlistMode(bool display);
   void static toggleRackspaceVariationInSetlistMode();
   String buttonName(int index);

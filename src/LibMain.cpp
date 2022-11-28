@@ -51,7 +51,7 @@ void LibMain::InvokeMenu(int index)
                     ExtensionWindow::toggleThickBorders();
                     break;
                   case 5:
-                    ExtensionWindow::toggleRackspaceVariationInSetlistMode();
+                    ExtensionWindow::toggleLockToSetlistMode();
                     break;
                   default:
                      break;   
