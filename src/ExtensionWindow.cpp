@@ -1155,6 +1155,10 @@ void ExtensionWindow::buttonClicked (Button* buttonThatWasClicked)
 }
 
 void ExtensionWindow::displayWindow(bool display) {
+    if (!extension->prefsLoaded) {
+        extension->pendingDisplayWindow = true;
+        return;
+    }
     if (extension->extensionWindow->isVisible() != display) {
         extension->extensionWindow->setVisible(display);
         lib->setWidgetValue(WIDGET_SELECTOR, (display == true ? 1.0 : 0.0));
@@ -1234,6 +1238,8 @@ void ExtensionWindow::processPreferencesWindowState(StringPairArray prefs) {
         displayExpandedWindow(true);
     }
     extension->resized();
+    extension->prefsLoaded = true;
+    if (extension->pendingDisplayWindow) displayWindow(true);
 }
 
 
@@ -1601,6 +1607,7 @@ String ExtensionWindow::getWindowState() {
 }
 
 void ExtensionWindow::saveWindowState() {
+    if (!extension->prefsLoaded) return;
     String windowState = getWindowState();
     String path = extensionPath + PREF_FILENAME;
     File prefs = File(path);
@@ -1616,7 +1623,7 @@ void ExtensionWindow::saveWindowState() {
 
 void ExtensionWindow::restartWindowTimer() {
     extension->windowTimer.stopTimer();
-    extension->windowTimer.startTimer(2000);
+    extension->windowTimer.startTimer(1000);
 }
 
 void MyDocumentWindow::closeButtonPressed() { 
@@ -1646,7 +1653,6 @@ void CreateImageTimer::timerCallback() {
 }
 
 void WindowChangeTimer::timerCallback() {
-    lib->consoleLog("Window Save Timer");
     ExtensionWindow::saveWindowState();
     this->stopTimer();
 }

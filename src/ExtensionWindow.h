@@ -209,6 +209,8 @@ public:
   bool chordProTwoColumns = false;
   bool chordProDarkMode = false;
   bool fitHeight = false;
+  bool prefsLoaded = false;
+  bool pendingDisplayWindow = false;
   std::unique_ptr<int> switchImmediately;
   int prevButtonSelected = 0;
   std::unique_ptr<Label> highlight;
