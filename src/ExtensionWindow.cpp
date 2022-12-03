@@ -354,7 +354,7 @@ Image ExtensionWindow::getWindowIcon() {
 void ExtensionWindow::resized()
 {
     windowTimer.stopTimer();
-    windowTimer.startTimer(5000);
+    windowTimer.startTimer(1000);
     int minWindowWidth = displayRightPanel ? 0 : 180;
     int minButtonHeight = 50;
     int largeScrollAreaWidth = 50;
