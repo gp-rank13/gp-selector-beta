@@ -20,3 +20,9 @@ class CreateImageTimer : public Timer
 public:
     void timerCallback() override;
 };
+
+class WindowChangeTimer : public Timer
+{
+public:
+    void timerCallback() override;
+};

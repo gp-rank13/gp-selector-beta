@@ -75,6 +75,7 @@ class MyDocumentWindow : public DocumentWindow
   }
   virtual ~MyDocumentWindow() { }
   virtual void closeButtonPressed () override;
+  virtual void moved () override;
 };
 
 class ExtensionWindow  :  public juce::Component,
@@ -122,16 +123,17 @@ public:
   void static toggleRackspaceVariationInSetlistMode();
   String buttonName(int index);
   void static displayWindow(bool display);
+  void static displayExpandedWindow(bool display);
   void static scrollWindow(double value);
   void static setTitleBarName(const String& name);
   void static processPreferencesDefaults(StringPairArray prefs);
   void static processPreferencesColors(StringPairArray prefs);
   void static processPreferencesChordPro(StringPairArray prefs);
+  void static processPreferencesWindowState(StringPairArray prefs);
   void static removeColorKeywordFromName(bool remove);
   void static refreshUI();
   void static setWindowPositionAndSize(int x, int y, int w, int h);
   void static setSongLabel();
-  Rectangle<int> getWindowPositionAndSize();
   Image static getWindowIcon();
   void mouseDrag ( const MouseEvent& /*e*/) override
     {
@@ -148,10 +150,13 @@ public:
   void chordProImagesCheckAndAdd(int index);
   int chordProGetVisibleImageCount();
   void static chordProCreateInvertedImages();
+  void static saveWindowState();
+  void static restartWindowTimer();
 
   static ExtensionWindow* extension;
   MyDraggableComponent draggableResizer;
   static bool zeroBasedNumbering;
+  WindowChangeTimer windowTimer;
   SharedResourcePointer<buttonLookAndFeel> buttonsLnF;
   SharedResourcePointer<gridButtonLookAndFeel> gridButtonsLnF;
   SharedResourcePointer<headerSongs> headerSongsLnF;
@@ -175,6 +180,9 @@ public:
 
   void chordProRefresh();
   void chordProReset();
+  String static getWindowState();
+  void static setWindowState();
+  Rectangle<int> static getWindowPositionAndSize();
 
   std::unique_ptr<MyDocumentWindow> extensionWindow;
   TooltipWindow tooltipWindow;

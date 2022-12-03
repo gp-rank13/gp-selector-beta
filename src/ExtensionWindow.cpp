@@ -16,6 +16,7 @@ float chordProFontSize = CP_DEFAULT_FONT_SIZE;
 int headerHeight = HEADER_HEIGHT;
 bool chordProMonospaceFont = false;
 bool lockToSetlistMode = false;
+extern std::string extensionPath;
 
 ExtensionWindow::ExtensionWindow ()
 {
@@ -352,6 +353,8 @@ Image ExtensionWindow::getWindowIcon() {
 
 void ExtensionWindow::resized()
 {
+    windowTimer.stopTimer();
+    windowTimer.startTimer(5000);
     int minWindowWidth = displayRightPanel ? 0 : 180;
     int minButtonHeight = 50;
     int largeScrollAreaWidth = 50;
@@ -955,31 +958,34 @@ void ExtensionWindow::updateViewportPositionForSubButtons() {
     } 
 }
 
+void ExtensionWindow::displayExpandedWindow(bool display) {
+    if (display) {
+            extension->sidePanelCloseButton->setVisible(true);
+            extension->sidePanelOpenButton->setVisible(false);
+            extension->fullscreenActivateButton->setVisible(true);
+            extension->clock->setVisible(true);
+            if (lib->inSetlistMode() && extension->chordProForCurrentSong) {
+                extension->chordProDisplayGUI(true);
+            }
+        } else {
+            extension->sidePanelCloseButton->setVisible(false);
+            extension->sidePanelOpenButton->setVisible(true);
+            extension->fullscreenActivateButton->setVisible(false);
+            extension->chordProDisplayGUI(false);
+            extension->clock->setVisible(false);
+            extension->header->setText(SONG_TITLE, dontSendNotification);
+        }
+        extension->resized();
+}
+
 void ExtensionWindow::buttonClicked (Button* buttonThatWasClicked)
 {
    if (buttonThatWasClicked == sidePanelOpenButton.get() || buttonThatWasClicked == sidePanelCloseButton.get())
     {
         displayRightPanel = !displayRightPanel;
-        if (displayRightPanel) {
-            setSize(container.getWidth() + 500, getHeight());
-            sidePanelCloseButton->setVisible(true);
-            sidePanelOpenButton->setVisible(false);
-            fullscreenActivateButton->setVisible(true);
-            clock->setVisible(true);
-            if (lib->inSetlistMode() && chordProForCurrentSong) {
-                extension->chordProDisplayGUI(true);
-            }
-        } else {
-            setSize(container.getWidth() + 10, getHeight());
-            sidePanelCloseButton->setVisible(false);
-            sidePanelOpenButton->setVisible(true);
-            fullscreenActivateButton->setVisible(false);
-            extension->chordProDisplayGUI(false);
-            clock->setVisible(false);
-            extension->header->setText(SONG_TITLE, dontSendNotification);
-        }
-        resized();
-      
+        setSize(container.getWidth() + (displayRightPanel ? 500 : 10), getHeight());
+        displayExpandedWindow(displayRightPanel);
+
     } else if (buttonThatWasClicked == btnPrev.get()) {
         if (lib->inSetlistMode()) {
             lib->switchToSong(juce::jmax(0, lib->getCurrentSongIndex()-1), 0);
@@ -1025,12 +1031,17 @@ void ExtensionWindow::buttonClicked (Button* buttonThatWasClicked)
         }
         resized();
     } else if (buttonThatWasClicked->getProperties()["type"] == "button") {
-        if (!lib->inSetlistMode() && lockToSetlistMode) return;
         bool switchRackSongImmediately = preferences->getProperty("ImmediateSwitching");
         bool inSetlist = lib->inSetlistMode();
         int currentGPIndex = (inSetlist ? lib->getCurrentSongIndex() : lib->getCurrentRackspaceIndex());
         int buttonIndex = buttonThatWasClicked->getProperties()["index"];
         std::vector<std::string> blank;
+
+        if (!inSetlist && lockToSetlistMode) {
+            lib->switchToSetlistView();
+            lib->switchToSong(buttonIndex, 0);
+            return;
+        }
 
         // Ensure other buttons are deselected
         for (int i = 0; i < buttons.size(); ++i) {
@@ -1067,11 +1078,19 @@ void ExtensionWindow::buttonClicked (Button* buttonThatWasClicked)
         }
         prevButtonSelected = buttonIndex;
     } else if (buttonThatWasClicked->getProperties()["type"] == "subButton") {
-        if (!lib->inSetlistMode() && lockToSetlistMode) return;
         bool switchRackSongImmediately = preferences->getProperty("ImmediateSwitching");
+        bool inSetlist = lib->inSetlistMode();
         int subButtonIndex = buttonThatWasClicked->getProperties()["index"];
         int buttonIndex = getButtonSelected();
-        if (lib->inSetlistMode()) {
+
+        if (!inSetlist && lockToSetlistMode) {
+            lib->switchToSetlistView();
+            lib->switchToSong(buttonIndex, subButtonIndex);
+            std::string songpartName = lib->getSongpartName(buttonIndex, subButtonIndex);
+            chordProScrollToSongPart(songpartName);
+            return;
+        }
+        if (inSetlist) {
             lib->switchToSong(buttonIndex, subButtonIndex);
             std::string songpartName = lib->getSongpartName(buttonIndex, subButtonIndex);
             chordProScrollToSongPart(songpartName);
@@ -1184,7 +1203,7 @@ void ExtensionWindow::processPreferencesDefaults(StringPairArray prefs) {
     setLargeScrollArea(prefs.getValue("LargeScrollArea", "") == "true" ? true : false);
     removeColorKeywordFromName(prefs.getValue("RemoveColorKeywordFromName", "") == "true" ? true : false); 
     StringArray positionSize = StringArray::fromTokens(prefs.getValue("PositionAndSize", DEFAULT_WINDOW_POSITION), ",", "");
-    setWindowPositionAndSize(positionSize[0].getIntValue(), positionSize[1].getIntValue(), positionSize[2].getIntValue(), positionSize[3].getIntValue());
+    //setWindowPositionAndSize(positionSize[0].getIntValue(), positionSize[1].getIntValue(), positionSize[2].getIntValue(), positionSize[3].getIntValue());
     extension->preferences->setProperty("ThickBorders", prefs.getValue("ThickBorders", "") == "true" ? true : false);
     extension->preferences->setProperty("BorderColor", prefs.getValue("BorderColor", DEFAULT_BORDER_COLOR));
     extension->chordProDarkMode = prefs.getValue("ChordProDarkMode", "") == "true" ? true : false;
@@ -1201,6 +1220,22 @@ void ExtensionWindow::processPreferencesChordPro(StringPairArray prefs) {
     extension->chordProColors.addArray(prefs);
     extension->chordProSetColors();
 }
+
+void ExtensionWindow::processPreferencesWindowState(StringPairArray prefs) {
+    StringArray positionSize = StringArray::fromTokens(prefs.getValue("PositionAndSize", DEFAULT_WINDOW_POSITION), ",", "");
+    bool extendedWindow = prefs.getValue("ExpandedWindow", "") == "true" ? true : false;
+    int divider = prefs.getValue("WindowDivider", "0").getIntValue();
+    std::string test = extendedWindow ? "Expanded" : "Not Expanded ";
+    extension->extensionWindow->setTopLeftPosition(positionSize[0].getIntValue(), positionSize[1].getIntValue());
+    extension->extensionWindow->setSize(positionSize[2].getIntValue(), positionSize[3].getIntValue());
+    if (extendedWindow) {
+        extension->displayRightPanel = true;
+        extension->draggableResizer.setBounds(extension->draggableResizer.getBounds().withX(divider));
+        displayExpandedWindow(true);
+    }
+    extension->resized();
+}
+
 
 void ExtensionWindow::removeColorKeywordFromName(bool remove) {
     extension->preferences->setProperty("RemoveColorKeywordFromName", remove); 
@@ -1407,6 +1442,7 @@ void ExtensionWindow::chordProReadFile(int index) {
         extension->chordProDisplayGUI(false);
         extension->chordProReset();
     }
+
 }
 
 void ExtensionWindow::chordProRefresh() {
@@ -1555,8 +1591,42 @@ void ExtensionWindow::setSongLabel() {
     }
 }
 
-void MyDocumentWindow::closeButtonPressed () { 
+String ExtensionWindow::getWindowState() {
+    Rectangle<int> window = getWindowPositionAndSize();
+    String positionSize = "PositionAndSize = " + String(window.getX()) + "," + String(window.getY()) + "," + String(window.getWidth()) + "," + String(window.getHeight());
+    String expandedWindow = extension->displayRightPanel ? "ExpandedWindow = true" : "ExpandedWindow = false";
+    String divider = "WindowDivider = " + String(extension->draggableResizer.getX());
+    return positionSize + "\n" + expandedWindow + "\n" + divider;
+        
+}
+
+void ExtensionWindow::saveWindowState() {
+    String windowState = getWindowState();
+    String path = extensionPath + PREF_FILENAME;
+    File prefs = File(path);
+    prefs.create();
+    String content = prefs.loadFileAsString();
+    int position = content.indexOf("[WindowLastSavedState]");
+    if (position > 0) {
+        content = content.substring(0, position);
+    }
+    content = content.trimEnd() + "\n\n[WindowLastSavedState]\n" + windowState;
+    prefs.replaceWithText(content);
+}
+
+void ExtensionWindow::restartWindowTimer() {
+    extension->windowTimer.stopTimer();
+    extension->windowTimer.startTimer(2000);
+}
+
+void MyDocumentWindow::closeButtonPressed() { 
+    ExtensionWindow::saveWindowState();
     ExtensionWindow::displayWindow(false);
+}
+
+void MyDocumentWindow::moved() { 
+    if (ExtensionWindow::extension != nullptr)
+        ExtensionWindow::restartWindowTimer();
 }
 
 void ClockTimer::timerCallback() {
@@ -1572,5 +1642,11 @@ void RefreshTimer::timerCallback() {
 
 void CreateImageTimer::timerCallback() {
     ExtensionWindow::chordProCreateInvertedImages();
+    this->stopTimer();
+}
+
+void WindowChangeTimer::timerCallback() {
+    lib->consoleLog("Window Save Timer");
+    ExtensionWindow::saveWindowState();
     this->stopTimer();
 }

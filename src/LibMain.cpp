@@ -14,6 +14,7 @@ namespace gigperformer {
 
 bool isGigFileLoading = false;
 bool isFirstGigFileOpened = true;
+std::string extensionPath;
 
 int LibMain::GetMenuCount()
 {
@@ -162,6 +163,7 @@ void LibMain::OnStatusChanged(GPStatusType status) {
 }
 
 void LibMain::OnOpen() {
+    extensionPath = getPathToMe();
     ExtensionWindow::initialize();
 }
 
@@ -261,12 +263,14 @@ void LibMain::OnWidgetValueChanged(const std::string& widgetName, double newValu
 
 void LibMain::readPreferencesFile(std::string onlySection = "") {
     std::string prefsFileText;
-    gigperformer::sdk::GPUtils::loadTextFile(getPathToMe() + PATH_SEPARATOR() + PREF_FILENAME, prefsFileText);
+    std::string prefsFilePath = getPathToMe() + PATH_SEPARATOR() + PREF_FILENAME;
+    gigperformer::sdk::GPUtils::loadTextFile(prefsFilePath, prefsFileText);
     StringArray lines = StringArray::fromLines(prefsFileText);
     StringArray keyValue;
     StringPairArray defaults;
     StringPairArray colors;
     StringPairArray chordpro;
+    StringPairArray windowstate;
     String line;
     String prefSection;
     for (int i = 0; i < lines.size(); ++i) { 
@@ -282,6 +286,8 @@ void LibMain::readPreferencesFile(std::string onlySection = "") {
                 colors.set(keyValue[0], keyValue[1]);
             } else if (prefSection.contains("ChordPro")) {
                 chordpro.set(prefSection + keyValue[0], keyValue[1]);
+            } else if (prefSection.contains("WindowLastSavedState")) {
+                windowstate.set(keyValue[0], keyValue[1]);
             }
         }
     }
@@ -294,6 +300,7 @@ void LibMain::readPreferencesFile(std::string onlySection = "") {
     if (onlySection == "chordpro" || onlySection == "") {
         ExtensionWindow::processPreferencesChordPro(chordpro);
     }
+    ExtensionWindow::processPreferencesWindowState(windowstate);
 }
 
 std::string LibMain::GetProductDescription()  // This MUST be defined in your class
