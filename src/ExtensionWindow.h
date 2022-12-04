@@ -155,7 +155,6 @@ public:
 
   static ExtensionWindow* extension;
   MyDraggableComponent draggableResizer;
-  static bool zeroBasedNumbering;
   WindowChangeTimer windowTimer;
   SharedResourcePointer<buttonLookAndFeel> buttonsLnF;
   SharedResourcePointer<gridButtonLookAndFeel> gridButtonsLnF;

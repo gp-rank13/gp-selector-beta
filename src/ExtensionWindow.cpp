@@ -21,8 +21,8 @@ extern std::string extensionPath;
 ExtensionWindow::ExtensionWindow ()
 {
     LookAndFeel::setDefaultLookAndFeel(buttonsLnF);
-    clockTimer.startTimer (5000);
-    refreshTimer.startTimer(1000);
+    clockTimer.startTimer(TIMER_CLOCK);
+    refreshTimer.startTimer(TIMER_UI_REFRESH);
 
     preferences.reset (new DynamicObject);
     preferences->setProperty("ImmediateSwitching", true);
@@ -354,7 +354,7 @@ Image ExtensionWindow::getWindowIcon() {
 void ExtensionWindow::resized()
 {
     windowTimer.stopTimer();
-    windowTimer.startTimer(1000);
+    windowTimer.startTimer(TIMER_WINDOW_STATE);
     int minWindowWidth = displayRightPanel ? 0 : 180;
     int minButtonHeight = 50;
     int largeScrollAreaWidth = 50;
@@ -1150,7 +1150,7 @@ void ExtensionWindow::buttonClicked (Button* buttonThatWasClicked)
         extension->missingImageLabel->setText(CP_DARK_MODE_IMAGE_PROCESSING, dontSendNotification);
         createInvertedImage->setVisible(false);
         extension->repaint();
-        imageTimer.startTimer(300);
+        imageTimer.startTimer(TIMER_IMAGE_CONVERT);
     }
 }
 
@@ -1603,7 +1603,6 @@ String ExtensionWindow::getWindowState() {
     String expandedWindow = extension->displayRightPanel ? "ExpandedWindow = true" : "ExpandedWindow = false";
     String divider = "WindowDivider = " + String(extension->draggableResizer.getX());
     return positionSize + "\n" + expandedWindow + "\n" + divider;
-        
 }
 
 void ExtensionWindow::saveWindowState() {
@@ -1623,7 +1622,7 @@ void ExtensionWindow::saveWindowState() {
 
 void ExtensionWindow::restartWindowTimer() {
     extension->windowTimer.stopTimer();
-    extension->windowTimer.startTimer(1000);
+    extension->windowTimer.startTimer(TIMER_WINDOW_STATE);
 }
 
 void MyDocumentWindow::closeButtonPressed() { 

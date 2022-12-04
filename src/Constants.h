@@ -76,4 +76,10 @@ const juce::String CP_DARK_MODE_IMAGE_PROCESSING = "Creating image...";
 const std::vector<std::string> NOTES_SHARP = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
 const std::vector<std::string> NOTES_FLAT = {"C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"};
 
+// Timer callback defaults
+const int TIMER_CLOCK = 5000;
+const int TIMER_UI_REFRESH = 1000;
+const int TIMER_WINDOW_STATE = 1000;
+const int TIMER_IMAGE_CONVERT = 300;
+
 #endif
