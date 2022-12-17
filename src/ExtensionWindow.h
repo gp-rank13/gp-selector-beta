@@ -98,11 +98,13 @@ public:
   void static addSubButtons(int count);
   void static updateSubButtonNames(std::vector<std::string> buttonNames);
   void static compareSubButtonNames(std::vector<std::string> buttonNames);
-  std::vector<std::string> getSubButtonNamesByIndex(int index);
+  std::vector<std::string> static getSubButtonNamesByIndex(int index);
+  std::string static getSubButtonNameByIndex(int index, int subIndex);
   bool static isButtonSelected(int index);
   int static getButtonSelected();
   int static getVisibleButtonCount();
   int static getVisibleSubButtonCount();
+  bool static getDisplayVariationForSongPartStatus();
   void static selectButton(int index);
   void static updatePrevCurrNext(int index);
   bool static isSubButtonSelected(int index);
@@ -119,6 +121,7 @@ public:
   void static toggleLargeScrollArea();  
   void static toggleThickBorders();  
   void static toggleLockToSetlistMode();
+  void static toggleVariationsInSetlistMode();
   void static displayRackspaceVariationInSetlistMode(bool display);
   void static toggleRackspaceVariationInSetlistMode();
   String buttonName(int index);

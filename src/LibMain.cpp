@@ -9,8 +9,8 @@ namespace gigperformer {
       GigPerformerAPI *CreateGPExtension(LibraryHandle handle) {
          return new LibMain(handle);
       }
-   } // namespace sdk
-} // namespace gigperformer
+   }
+}
 
 bool isGigFileLoading = false;
 bool isFirstGigFileOpened = true;
@@ -52,6 +52,9 @@ void LibMain::InvokeMenu(int index)
                     ExtensionWindow::toggleThickBorders();
                     break;
                   case 5:
+                    ExtensionWindow::toggleVariationsInSetlistMode();
+                    break;
+                  case 6:
                     ExtensionWindow::toggleLockToSetlistMode();
                     break;
                   default:
@@ -85,7 +88,8 @@ std::string LibMain::GetPanelXML(int index) {
 std::vector<std::string> LibMain::getSongNames() {
     std::vector<std::string> songNames;
     std::string songName;
-    for (int i = 0; i < getSongCount(); ++i) { 
+    int songCount = getSongCount();
+    for (int i = 0; i < songCount; ++i) { 
         songName = getSongName(i);
         songNames.push_back(songName);
     }
@@ -95,17 +99,30 @@ std::vector<std::string> LibMain::getSongNames() {
 std::vector<std::string> LibMain::getSongPartNames(int songIndex) {
     std::vector<std::string> songPartNames;
     std::string songPartName;
-    for (int i = 0; i < getSongpartCount(songIndex); ++i) { 
+    int songPartCount = getSongpartCount(songIndex);
+    for (int i = 0; i < songPartCount; ++i) { 
         songPartName = getSongpartName(songIndex, i);
         songPartNames.push_back(songPartName);
     }
     return songPartNames;
 }
 
+std::vector<std::string> LibMain::getVariationNamesForSong(int songIndex) {
+    std::vector<std::string> variationNames;
+    std::string variationName;
+    int songPartCount = getSongpartCount(songIndex);
+    for (int i = 0; i < songPartCount; ++i) { 
+        variationName = getVariationNameForSongPart(songIndex, i);
+        variationNames.push_back(variationName);
+    }
+    return variationNames;
+}
+
 std::vector<std::string> LibMain::getRackspaceNames() {
     std::vector<std::string> rackspaceNames;
     std::string rackspaceName;
-    for (int i = 0; i < getRackspaceCount(); ++i) { 
+    int rackspaceCount = getRackspaceCount();
+    for (int i = 0; i < rackspaceCount; ++i) { 
         rackspaceName = getRackspaceName(i);
         rackspaceNames.push_back(rackspaceName);
     }
@@ -115,7 +132,8 @@ std::vector<std::string> LibMain::getRackspaceNames() {
 std::vector<std::string> LibMain::getVariationNames(int rackspaceIndex) {
     std::vector<std::string> variationNames;
     std::string variationName;
-    for (int i = 0; i < getVariationCount(rackspaceIndex); ++i) { 
+    int variationCount = getVariationCount(rackspaceIndex);
+    for (int i = 0; i < variationCount; ++i) { 
         variationName = getVariationName(rackspaceIndex, i);
         variationNames.push_back(variationName);
     }
@@ -125,7 +143,8 @@ std::vector<std::string> LibMain::getVariationNames(int rackspaceIndex) {
 std::vector<std::vector<std::string>> LibMain::getAllVariationNames() {
     std::vector<std::vector<std::string>> allVariationNames;
     std::vector<std::string> variationNames;
-    for (int i = 0; i < getRackspaceCount(); ++i) { 
+    int rackspaceCount = getRackspaceCount();
+    for (int i = 0; i < rackspaceCount; ++i) { 
         variationNames = getVariationNames(i);
         allVariationNames.push_back(variationNames);
     }
@@ -207,10 +226,10 @@ void LibMain::OnSongChanged(int, int newIndex) {
         setWidgetValue(WIDGET_CP_SCROLL, 0.0);
         if (!ExtensionWindow::isButtonSelected(newIndex)) { // If selected in GP directly, ensure buttons are in sync
             ExtensionWindow::selectButton(newIndex);
-            ExtensionWindow::updateSubButtonNames(getSongPartNames(newIndex));
+            ExtensionWindow::updateSubButtonNames(ExtensionWindow::getDisplayVariationForSongPartStatus() ? getVariationNamesForSong(newIndex) : getSongPartNames(newIndex));
             ExtensionWindow::selectSubButton(getCurrentSongpartIndex());
         } else {
-            ExtensionWindow::updateSubButtonNames(getSongPartNames(newIndex));
+            ExtensionWindow::updateSubButtonNames(ExtensionWindow::getDisplayVariationForSongPartStatus() ? getVariationNamesForSong(newIndex) : getSongPartNames(newIndex));
         }
     }
 }
@@ -220,9 +239,9 @@ void LibMain::OnSongPartChanged(int oldIndex, int newIndex) {
     if (newIndex >= 0 && oldIndex != newIndex && inSetlistMode()) {
         int songIndex = getCurrentSongIndex();
         if (!ExtensionWindow::isSubButtonSelected(newIndex)) {
-            ExtensionWindow::updateSubButtonNames(getSongPartNames(songIndex));
+            ExtensionWindow::updateSubButtonNames(ExtensionWindow::getDisplayVariationForSongPartStatus() ? getVariationNamesForSong(songIndex) : getSongPartNames(songIndex));
             ExtensionWindow::selectSubButton(newIndex);
-            ExtensionWindow::chordProScrollToSongPart(getSongpartName(getCurrentSongIndex(),newIndex));
+            ExtensionWindow::chordProScrollToSongPart(getSongpartName(getCurrentSongIndex(), newIndex));
         }
     }
 }
@@ -304,6 +323,6 @@ void LibMain::readPreferencesFile(std::string onlySection = "") {
 }
 
 std::string LibMain::GetProductDescription()  // This MUST be defined in your class
-    {
-        return XMLProductDescription;
-    }
+{
+    return XMLProductDescription;
+}

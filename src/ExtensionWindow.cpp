@@ -16,6 +16,7 @@ float chordProFontSize = CP_DEFAULT_FONT_SIZE;
 int headerHeight = HEADER_HEIGHT;
 bool chordProMonospaceFont = false;
 bool lockToSetlistMode = false;
+bool displayVariationsForSong = false;
 extern std::string extensionPath;
 
 ExtensionWindow::ExtensionWindow ()
@@ -586,7 +587,7 @@ void ExtensionWindow::refreshUI() {
             updateButtonLabel(SONG_TITLE);
             setTitleBarName(SONG_WINDOW_TITLE);
             updateButtonNames(lib->getSongNames());
-            updateSubButtonNames(lib->getSongPartNames(songIndex));
+            updateSubButtonNames(extension->getSubButtonNamesByIndex(songIndex));
             selectButton(lib->getCurrentSongIndex());
             selectSubButton(lib->getCurrentSongpartIndex());
             chordProReadFile(songIndex);
@@ -657,6 +658,11 @@ void ExtensionWindow::toggleLockToSetlistMode() {
     } else if (!lib->inSetlistMode() && !lockToSetlistMode) {
         lib->switchToPanelView();
     }
+}
+
+void ExtensionWindow::toggleVariationsInSetlistMode() {
+    displayVariationsForSong = !displayVariationsForSong;
+    refreshUI();
 }
 
 void ExtensionWindow::displayRackspaceVariationInSetlistMode(bool display) {
@@ -924,12 +930,27 @@ void ExtensionWindow::updateSubButtonNames(std::vector<std::string> buttonNames)
 std::vector<std::string> ExtensionWindow::getSubButtonNamesByIndex(int index) {
     std::vector<std::string> names;
     if (lib->inSetlistMode()) {
-        names = lib->getSongPartNames(index);
+        names = displayVariationsForSong ? lib->getVariationNamesForSong(index) : lib->getSongPartNames(index);
     } else {
         names = lib->getVariationNames(index);
     } 
     return names;
 } 
+
+std::string ExtensionWindow::getSubButtonNameByIndex(int index, int subIndex) {
+    std::string name;
+    if (lib->inSetlistMode()) {
+        name = displayVariationsForSong ? lib->getVariationNameForSongPart(index, subIndex) : lib->getSongpartName(index, subIndex);
+    } else {
+        name = lib->getVariationName(index, subIndex);
+    } 
+    return name;
+} 
+
+bool ExtensionWindow::getDisplayVariationForSongPartStatus() {
+    return displayVariationsForSong;
+}
+
 
 void ExtensionWindow::updateButtonLabel(const String& text) {
     if (text == "Songs"){ 
@@ -1086,13 +1107,13 @@ void ExtensionWindow::buttonClicked (Button* buttonThatWasClicked)
         if (!inSetlist && lockToSetlistMode) {
             lib->switchToSetlistView();
             lib->switchToSong(buttonIndex, subButtonIndex);
-            std::string songpartName = lib->getSongpartName(buttonIndex, subButtonIndex);
+            std::string songpartName = getSubButtonNameByIndex(buttonIndex, subButtonIndex);
             chordProScrollToSongPart(songpartName);
             return;
         }
         if (inSetlist) {
             lib->switchToSong(buttonIndex, subButtonIndex);
-            std::string songpartName = lib->getSongpartName(buttonIndex, subButtonIndex);
+            std::string songpartName = getSubButtonNameByIndex(buttonIndex, subButtonIndex);
             chordProScrollToSongPart(songpartName);
         } else {
             lib->switchToRackspace(buttonIndex, subButtonIndex);
@@ -1214,6 +1235,7 @@ void ExtensionWindow::processPreferencesDefaults(StringPairArray prefs) {
     displayRackspaceVariationInSetlistMode(prefs.getValue("DisplayRackspaceVariationInSetlistMode", "") == "true" ? true : false);
     headerRackspaceColor = Colour::fromString(prefs.getValue("HeaderRackspaceColor", HEADER_RACKSPACE_COLOR));
     headerSongColor = Colour::fromString(prefs.getValue("HeaderSongColor", HEADER_SONG_COLOR));
+    displayVariationsForSong = prefs.getValue("DisplayVariationsInSetlistMode", "") == "true" ? true : false; 
 }
 
 void ExtensionWindow::processPreferencesColors(StringPairArray prefs) {
@@ -1642,7 +1664,7 @@ void ClockTimer::timerCallback() {
 void RefreshTimer::timerCallback() {
     if (!lib->inSetlistMode() && lockToSetlistMode) return;
     ExtensionWindow::compareButtonNames(lib->inSetlistMode() ? lib->getSongNames() : lib->getRackspaceNames());
-    ExtensionWindow::compareSubButtonNames(lib->inSetlistMode() ? lib->getSongPartNames(ExtensionWindow::getButtonSelected()) : lib->getVariationNames(ExtensionWindow::getButtonSelected()));
+    ExtensionWindow::compareSubButtonNames(ExtensionWindow::getSubButtonNamesByIndex(ExtensionWindow::getButtonSelected()));
     ExtensionWindow::setSongLabel();
 }
 

@@ -70,6 +70,7 @@ public:
     std::vector<std::string> getVariationNames(int rackspaceIndex);
     std::vector<std::string> getSongNames();
     std::vector<std::string> getSongPartNames(int songIndex);
+    std::vector<std::string> getVariationNamesForSong(int songIndex);
 
 private:
     std::vector<std::vector<std::string>> getAllVariationNames();
