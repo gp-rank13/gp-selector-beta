@@ -6,15 +6,19 @@
 #include "IconPaths.h"
 
 ExtensionWindow* ExtensionWindow::extension = nullptr;
-LibMain* lib = new LibMain(nullptr);   
+//LibMain* lib = new LibMain(nullptr);   
+LibMain* lib;
 Colour chordProLyricColor = Colour::fromString(CP_DARK_LYRIC_COLOR);  
 Colour chordProChordColor = Colour::fromString(CP_DARK_CHORD_COLOR);
 Colour viewPortBackground = Colour::fromString(BACKGROUND_COLOR);
-Colour headerRackspaceColor = Colour::fromString(HEADER_RACKSPACE_COLOR);
+//Colour headerRackspaceColor = Colour::fromString(HEADER_RACKSPACE_COLOR);
 Colour headerSongColor = Colour::fromString(HEADER_SONG_COLOR);
 float chordProFontSize = CP_DEFAULT_FONT_SIZE;
 int headerHeight = HEADER_HEIGHT;
+int chordProTopPadding = CP_TOP_PADDING;
 bool chordProMonospaceFont = false;
+bool chordProSmallChordFont = false;
+bool chordProLeftLabels = false;
 bool lockToSetlistMode = false;
 bool displayVariationsForSong = false;
 extern std::string extensionPath;
@@ -24,20 +28,75 @@ ExtensionWindow::ExtensionWindow ()
     LookAndFeel::setDefaultLookAndFeel(buttonsLnF);
     clockTimer.startTimer(TIMER_CLOCK);
     refreshTimer.startTimer(TIMER_UI_REFRESH);
-
+    lib = new LibMain(nullptr);
     preferences.reset (new DynamicObject);
+    preferencesChordProColors.reset (new DynamicObject);
+    /*
     preferences->setProperty("ImmediateSwitching", true);
     preferences->setProperty("LargeScrollArea", false);
     preferences->setProperty("ZeroBasedNumbers", false);
     preferences->setProperty("RemoveColorKeywordFromName", false);
     preferences->setProperty("ThickBorders", false);
+    */
+    String imageBase64Off = TOGGLE_OFF;
+    Image toggleOff;
+
+    MemoryOutputStream mosOff;
+    auto resultOff = Base64::convertFromBase64(mosOff, imageBase64Off);
+    if (resultOff) {
+        toggleOff = ImageFileFormat::loadFrom(mosOff.getData(), mosOff.getDataSize());
+    }
+    String imageBase64On = TOGGLE_ON;
+    Image toggleOn;
+    MemoryOutputStream mosOn;
+    auto resultOn = Base64::convertFromBase64(mosOn, imageBase64On);
+    if (resultOn) {
+        toggleOn = ImageFileFormat::loadFrom(mosOn.getData(), mosOn.getDataSize());
+    }
+    DrawableImage on, off;
+    on.setImage(toggleOn);
+    off.setImage(toggleOff);
+
+    for (int i = 0; i < 6; ++i) {
+        auto button = new DrawableButton(std::to_string(i), DrawableButton::ImageFitted);
+        prefButtons.add(button);
+        prefButtons[i]->setImages(&off, 0, 0, 0, &on);
+        prefButtons[i]->setClickingTogglesState(true);
+        prefButtons[i]->setRepaintsOnMouseActivity(true); 
+        prefButtons[i]->addListener (this);
+        prefButtons[i]->setColour (DrawableButton::backgroundOnColourId, Colour(0x00000000));
+        preferencesContainer.addAndMakeVisible(prefButtons[i]);
+    }
+
+    for (int i = 0; i < 4; ++i) {
+        auto label = new Label(std::to_string(i), "");
+        prefColorLabels.add(label);
+        prefColorLabels[i]->setRepaintsOnMouseActivity(true); 
+        prefColorLabels[i]->setEditable (true, true, false);
+        prefColorLabels[i]->setFont (Font (16.00f, Font::plain).withTypefaceStyle ("Regular"));
+        prefColorLabels[i]->setColour (Label::backgroundColourId, Colour(0xff404040));
+        prefColorLabels[i]->onTextChange = [this]() { updatePreferencesColors(); };
+
+        preferencesContainer.addAndMakeVisible(prefColorLabels[i]);
+    }
+    /*
+    prefToggle.reset (new DrawableButton("pref", DrawableButton::ImageFitted));
+    prefToggle->setButtonStyle(DrawableButton::ImageFitted);
+    prefToggle->setImages(&off, 0, 0, 0, &on);
+    prefToggle->setClickingTogglesState(true);
+    prefToggle->setTriggeredOnMouseDown(true);
+    prefToggle->setRepaintsOnMouseActivity(true); 
+    prefToggle->addListener (this);
+    prefToggle->setColour (DrawableButton::backgroundOnColourId, Colour(0x00000000));
+    //getLookAndFeel().setColour (DrawableButton::backgroundOnColourId, Colours::transparentWhite);
+    */
 
     header.reset (new Label ("header", SONG_TITLE));
     addAndMakeVisible (header.get());
     header->setEditable (false, false, false);
     header->setBounds (0, 0, getWidth(), headerHeight);
     header->setFont (Font (25.00f, Font::plain).withTypefaceStyle ("Regular"));
-    header->setLookAndFeel(headerRackspacesLnF);
+    header->setLookAndFeel(headerSongsLnF);
     
     highlight.reset (new Label ("subButtonHighlight", ""));
     highlight->setEditable (false, false, false);
@@ -50,13 +109,14 @@ ExtensionWindow::ExtensionWindow ()
     clock->setEditable (false, false, false);
     clock->setLookAndFeel(headerLnF);
     clock->setVisible(false);
+    clock->setText(Time::getCurrentTime().toString(false, true, false, true), dontSendNotification);
 
     Path p;
     p.loadPathFromData (sidePanelOpenPathData, sizeof (sidePanelOpenPathData));
     sidePanelOpenButton.reset (new ShapeButton ( "sidePanelOpenButton", Colours::white, Colours::lightgrey, Colours::white ));
     sidePanelOpenButton->setShape (p, true, true, false);
     sidePanelOpenButton->setClickingTogglesState(true);
-    sidePanelOpenButton->setTooltip("Expand window to display large song/rackspace titles");
+    sidePanelOpenButton->setTooltip("Display song list");
     sidePanelOpenButton->addListener (this);
     addAndMakeVisible (sidePanelOpenButton.get());
 
@@ -65,7 +125,7 @@ ExtensionWindow::ExtensionWindow ()
     sidePanelCloseButton.reset (new ShapeButton ( "sidePanelCloseButton", Colours::white, Colours::lightgrey, Colours::white ));
     sidePanelCloseButton->setShape (p2, true, true, false);
     sidePanelCloseButton->setClickingTogglesState(true);
-    sidePanelCloseButton->setTooltip("Close expanded window");
+    sidePanelCloseButton->setTooltip("Hide song list");
     sidePanelCloseButton->addListener (this);
     addAndMakeVisible (sidePanelCloseButton.get());
     sidePanelCloseButton->setVisible(false);
@@ -138,7 +198,7 @@ ExtensionWindow::ExtensionWindow ()
     p9.applyTransform(juce::AffineTransform::verticalFlip(0));
     columnsTwoButton.reset (new ShapeButton ( "colummnsTwoButton", Colours::white, Colours::lightgrey, Colours::white ));
     columnsTwoButton->setShape (p9, true, true, false);
-    columnsTwoButton->setTooltip("Display two columns");
+    columnsTwoButton->setTooltip("Display two pages");
     columnsTwoButton->addListener (this);
     addAndMakeVisible (columnsTwoButton.get());
     columnsTwoButton->setVisible(false);
@@ -148,7 +208,7 @@ ExtensionWindow::ExtensionWindow ()
     p10.applyTransform(juce::AffineTransform::verticalFlip(0));
     columnsOneButton.reset (new ShapeButton ( "colummnsOneButton", Colours::white, Colours::lightgrey, Colours::white ));
     columnsOneButton->setShape (p10, true, true, false);
-    columnsOneButton->setTooltip("Display single column");
+    columnsOneButton->setTooltip("Display single page");
     columnsOneButton->addListener (this);
     addAndMakeVisible (columnsOneButton.get());
     columnsOneButton->setVisible(false);
@@ -171,6 +231,15 @@ ExtensionWindow::ExtensionWindow ()
     addAndMakeVisible (fitHeightButton.get());
     fitHeightButton->setVisible(false);
 
+    Path p13;
+    p13.loadPathFromData (closePathData, sizeof (closePathData));
+    closeButton.reset (new ShapeButton ( "closeButton", Colours::white, Colours::lightgrey, Colours::white ));
+    closeButton->setShape (p13, true, true, false);
+    closeButton->setTooltip("Close preferences");
+    closeButton->addListener (this);
+    preferencesContainer.addAndMakeVisible (closeButton.get());
+
+/*
     btnCurrent.reset (new TextButton ("btnCurrent"));
     btnCurrent->setLookAndFeel(minimalistSongLnF);
     btnCurrent->setButtonText ("");
@@ -189,9 +258,14 @@ ExtensionWindow::ExtensionWindow ()
     btnModeSwitch.reset (new TextButton ("btnModeSwitch"));
     btnModeSwitch->setLookAndFeel(blankLnF);
     btnModeSwitch->setButtonText ("");
-    btnModeSwitch->setTooltip("Switch between rackspaces and songs");
-    btnModeSwitch->addListener (this);  
-    addAndMakeVisible (btnModeSwitch.get());
+    //btnModeSwitch->setTooltip("Switch between rackspaces and songs");
+    //btnModeSwitch->addListener (this);  
+    //addAndMakeVisible (btnModeSwitch.get());
+*/
+    setlistButton.reset (new TextButton ("All Songs"));
+    setlistButton->setLookAndFeel(setlistButtonLnF);
+    setlistButton->setButtonText ("All Songs");
+    setlistButton->addListener (this);   
 
     fontUp.reset (new TextButton ("+"));
     fontUp->setLookAndFeel(popOverLnf);
@@ -268,6 +342,20 @@ ExtensionWindow::ExtensionWindow ()
         container.addAndMakeVisible(subButtons[i]);
         subButtons[i]->setVisible(false);
     }
+    
+    // Setlists
+    for (int i = 0; i < DEFAULT_SETLISTS; ++i) {
+        std::string number = std::to_string(i);
+        auto button = new TextButton(number); 
+        setlistButtons.add(button);
+        setlistButtons[i]->setLookAndFeel(setlistListButtonLnF);
+        setlistButtons[i]->setClickingTogglesState(true);
+        setlistButtons[i]->setRadioGroupId(3);
+        setlistButtons[i]->setTriggeredOnMouseDown(true);
+        setlistButtons[i]->getProperties().set("type", "setlistButton"); 
+        setlistButtons[i]->addListener(this);  
+        setlistContainer.addChildComponent(setlistButtons[i]);
+    }
 
     // ChordPro
     for (auto i = 0; i < 100; ++i) {
@@ -277,6 +365,7 @@ ExtensionWindow::ExtensionWindow ()
         chordProLines[i]->setEditable (false, false, false);
         chordProLines[i]->setLookAndFeel(chordProLnF);
         chordProLines[i]->setVisible(true);
+        chordProLines[i]->setInterceptsMouseClicks(false, false);
         chordProContainer.addAndMakeVisible(chordProLines[i]);
     }
 
@@ -287,11 +376,21 @@ ExtensionWindow::ExtensionWindow ()
         chordProContainer.addAndMakeVisible(chordProImages[i]);
     }
 
+    noSongsLabel.reset (new Label ("noSongs", "No Songs"));
+    noSongsLabel->setEditable (false, false, false);
+    noSongsLabel->setBounds (0, 0, getWidth(), headerHeight);
+    noSongsLabel->setLookAndFeel(noSongLabelLnF);
+
+    noChordProLabel.reset (new Label ("noSongs", NO_CHORDPRO_MESSAGE));
+    noChordProLabel->setEditable (false, false, false);
+    noChordProLabel->setBounds (0, 0, getWidth(), headerHeight);
+    noChordProLabel->setLookAndFeel(noChordProLabelLnF);
+
     draggableResizer.addMouseListener(this, true);
     draggableResizer.setMouseCursor(MouseCursor::LeftRightResizeCursor);
-    containerRight.addAndMakeVisible (btnCurrent.get());
-    containerRight.addAndMakeVisible (btnPrev.get());
-    containerRight.addAndMakeVisible (btnNext.get());
+    //containerRight.addAndMakeVisible (btnCurrent.get());
+    //containerRight.addAndMakeVisible (btnPrev.get());
+    //containerRight.addAndMakeVisible (btnNext.get());
     viewport.setViewedComponent(&container, false);
     viewportRight.setViewedComponent(&containerRight, false);
     viewport.getVerticalScrollBar().setColour(ScrollBar::thumbColourId, Colour::fromString(BACKGROUND_COLOR));
@@ -302,6 +401,13 @@ ExtensionWindow::ExtensionWindow ()
     addAndMakeVisible(draggableResizer);
     addAndMakeVisible(fontButtonContainer);
     addAndMakeVisible(missingImageContainer);
+    addAndMakeVisible(setlistButton.get());
+    addChildComponent(setlistContainer);
+    addChildComponent(noSongsLabel.get());
+    addChildComponent(preferencesContainer);
+    containerRight.addChildComponent(noChordProLabel.get());
+    //preferencesContainer.addAndMakeVisible(prefToggle.get());
+
 
     extensionWindow.reset(new MyDocumentWindow());
     extensionWindow->setContentNonOwned(this, true);
@@ -318,6 +424,19 @@ ExtensionWindow::ExtensionWindow ()
         extensionWindow->getPeer()->setIcon(getWindowIcon());
         extensionWindow->setResizeLimits(200, 250, 10000, 10000);
     #endif
+
+    String imageBase64 = MENU_ICON;
+    MemoryOutputStream mo;
+    auto result = Base64::convertFromBase64(mo, imageBase64);
+    if (result) {
+        menuIcon = ImageFileFormat::loadFrom(mo.getData(), mo.getDataSize());
+    }
+    menuIconComponent.setImage(menuIcon);
+    menuIconComponent.setSize(16,16);
+    addAndMakeVisible(menuIconComponent);
+    menuIconComponent.setInterceptsMouseClicks(false,false);
+
+    //if (extension == nullptr) ExtensionWindow::initialize();
 }
 
 ExtensionWindow::~ExtensionWindow()
@@ -329,6 +448,7 @@ ExtensionWindow::~ExtensionWindow()
 void ExtensionWindow::paint (Graphics& g)
 {
     g.fillAll (Colour::fromString(BACKGROUND_COLOR));
+    g.drawImageAt(menuIcon, 5,5);
 }
 
 void ExtensionWindow::setWindowPositionAndSize(int x, int y, int w, int h) {
@@ -374,7 +494,7 @@ void ExtensionWindow::resized()
     auto x = displayRightPanel ? draggableResizer.getX() 
                                : getWidth();
     
-    // Width of 15 provides a wider area to select the resizer on touchscreens. The displayed width is overridden in the Paint method of MyDraggableComponent.
+    // The increased width of the pane separator/resizer is to help with touchscreens. The actual displayed width is overridden in the Paint method of MyDraggableComponent.
     draggableResizer.setBounds (juce::jmax(minWindowWidth, x), headerHeight, PANE_SEPARATOR_WIDTH, getHeight()); 
     int buttonDisplayCount = 0;
     for (int i = 0; i < buttons.size(); ++i) {
@@ -387,7 +507,7 @@ void ExtensionWindow::resized()
     }
 
     // Don't display if only 1 sub button (except if not switching immediately)
-    bool switchRackSongImmediately = preferences->getProperty("SwitchImmediately");
+    bool switchRackSongImmediately = true; //preferences->getProperty("SwitchImmediately");
     if (subButtonDisplayCount == 1 && switchRackSongImmediately) {
         subButtonDisplayCount = 0;
         subButtons[0]->setVisible(false);
@@ -406,53 +526,81 @@ void ExtensionWindow::resized()
     int headerLabelWidth = headerLabelFont.getStringWidth(headerLabel);
     header->setBounds (0, 0, getWidth(), headerHeight);
     clock->setBounds (getWidth()/2 - 50, 0, 100, headerHeight);
-    clock->setVisible(getWidth() > 460 && clock->getX() > headerLabelWidth && containerRight.isVisible() ? true : false);
+    clock->setVisible(getWidth() > 460 && clock->getX() > headerLabelWidth ? true : false);
     if (chordProImagesOnly && getWidth() < 560) clock->setVisible(false);
     if (viewportRight.getWidth() <= 305 && viewportRight.isVisible()) fontButtonContainer.setVisible(false);
-    if (viewportRight.getWidth() <= 355 && viewportRight.isVisible()) missingImageContainer.setVisible(false);
+    if (viewportRight.getWidth() <= 375 && viewportRight.isVisible()) missingImageContainer.setVisible(false);
     
-    auto r = header->getBounds();
-    if (sidePanelOpenButton->isVisible()) {
-        sidePanelOpenButton->setBounds (r.removeFromRight (50).withSizeKeepingCentre (25, 25));
-    } else {
-        sidePanelCloseButton->setBounds (r.removeFromRight (50).withSizeKeepingCentre (25, 25));
-    }
+    //auto r = header->getBounds();
+    int iconX = header->getBounds().getWidth() - 60;
+    int iconY = header->getBounds().getY();
+    int iconW = 60;
+    int iconH = header->getHeight();
+    auto iconBounds = Rectangle(iconX, iconY, iconW, iconH);
+
     if (pinUnpinnedButton->isVisible()) {
-        pinUnpinnedButton->setBounds (r.removeFromRight (22).withSizeKeepingCentre (25, 25));
+        //pinUnpinnedButton->setBounds (r.removeFromRight (60).withSizeKeepingCentre (25, 25));
+        pinUnpinnedButton->setBounds(iconBounds.withSizeKeepingCentre(25,25));
     } else {
-        r.setY(r.getY() + 5);
-        pinPinnedButton->setBounds (r.removeFromRight (22).withSizeKeepingCentre (13, 13));
-        r.setY(r.getY() - 5);
+        //r.setY(r.getY() + 5);
+        //pinPinnedButton->setBounds (r.removeFromRight (60).withSizeKeepingCentre (13, 13));
+        //r.setY(r.getY() - 5);
+        pinPinnedButton->setBounds(iconBounds.withY(5).withSizeKeepingCentre(13,13));
     }
+    iconBounds = iconBounds.withX(iconBounds.getX() - 40);
     if (displayRightPanel) {
         if (fullscreenActivateButton->isVisible()) {
-            fullscreenActivateButton->setBounds(r.removeFromRight(48).withSizeKeepingCentre (25, 25));
+            //fullscreenActivateButton->setBounds(r.removeFromRight(40).withSizeKeepingCentre (25, 25));
+            fullscreenActivateButton->setBounds(iconBounds.withSizeKeepingCentre(25,25));
         } else {
-            fullscreenDeactivateButton->setBounds(r.removeFromRight(48).withSizeKeepingCentre (25, 25));
+            //fullscreenDeactivateButton->setBounds(r.removeFromRight(40).withSizeKeepingCentre (25, 25));
+            fullscreenDeactivateButton->setBounds(iconBounds.withSizeKeepingCentre(25,25));
         }
-        lightDarkModeButton->setBounds (r.removeFromRight (45).withSizeKeepingCentre (27, 27));
-        lightDarkModeButton->setVisible(chordProForCurrentSong && lightDarkModeButton->getX() > headerLabelWidth + 20);
+        //lightDarkModeButton->setBounds (r.removeFromRight (45).withSizeKeepingCentre (27, 27));
+        
+        if (chordProForCurrentSong) {
+            iconBounds = iconBounds.withX(iconBounds.getX() - 45);
+            lightDarkModeButton->setBounds(iconBounds.withSizeKeepingCentre(27,27));
+            lightDarkModeButton->setVisible(chordProForCurrentSong && lightDarkModeButton->getX() > headerLabelWidth + 20);
+        }
         if (!chordProImagesOnly && chordProForCurrentSong) {
-            fontButton->setBounds (r.removeFromRight (45).withSizeKeepingCentre (27, 27));
+            iconBounds = iconBounds.withX(iconBounds.getX() - 45);
+            //fontButton->setBounds (r.removeFromRight (45).withSizeKeepingCentre (27, 27));
+            fontButton->setBounds (iconBounds.withSizeKeepingCentre(27,27));
             fontButton->setVisible(fontButton->getX() > headerLabelWidth + 20);
-
         }
-        if (chordProTwoColumns) {
-            columnsOneButton->setBounds (r.removeFromRight (45).withSizeKeepingCentre (27, 27));
-            columnsOneButton->setVisible(chordProImagesOnly && columnsOneButton->getX() > headerLabelWidth + 20);
-        } else {
-            columnsTwoButton->setBounds (r.removeFromRight (45).withSizeKeepingCentre (27, 27));
-            columnsTwoButton->setVisible(chordProImagesOnly && columnsTwoButton->getX() > headerLabelWidth + 20);
-        }
-        if (fitHeight) {
-            fitWidthButton->setBounds (r.removeFromRight (45).withSizeKeepingCentre (27, 27));
-            fitWidthButton->setVisible(chordProImagesOnly && fitWidthButton->getX() > headerLabelWidth + 20);
-        } else {
-            fitHeightButton->setBounds (r.removeFromRight (45).withSizeKeepingCentre (27, 27));
-            fitHeightButton->setVisible(chordProImagesOnly && fitHeightButton->getX() > headerLabelWidth + 20);
+        if (chordProImagesOnly && chordProForCurrentSong) {
+            iconBounds = iconBounds.withX(iconBounds.getX() - 45);
+            if (chordProTwoColumns) {
+                //columnsOneButton->setBounds (r.removeFromRight (45).withSizeKeepingCentre (27, 27));
+                columnsOneButton->setBounds (iconBounds.withSizeKeepingCentre(27,27));
+                columnsOneButton->setVisible(chordProImagesOnly && columnsOneButton->getX() > headerLabelWidth + 20);
+            } else {
+                //columnsTwoButton->setBounds (r.removeFromRight (45).withSizeKeepingCentre (27, 27));
+                columnsTwoButton->setBounds (iconBounds.withSizeKeepingCentre(27,27));
+                columnsTwoButton->setVisible(chordProImagesOnly && columnsTwoButton->getX() > headerLabelWidth + 20);
+            }
+            iconBounds = iconBounds.withX(iconBounds.getX() - 45);
+            if (fitHeight) {
+                //fitWidthButton->setBounds (r.removeFromRight (45).withSizeKeepingCentre (27, 27));
+                fitWidthButton->setBounds(iconBounds.withSizeKeepingCentre(27,27));
+                fitWidthButton->setVisible(chordProImagesOnly && fitWidthButton->getX() > headerLabelWidth + 20);
+            } else {
+                //fitHeightButton->setBounds (r.removeFromRight (45).withSizeKeepingCentre (27, 27));
+                fitHeightButton->setBounds(iconBounds.withSizeKeepingCentre(27,27));
+                fitHeightButton->setVisible(chordProImagesOnly && fitHeightButton->getX() > headerLabelWidth + 20);
+            }
         }
     }
-    
+    iconBounds = iconBounds.withX(iconBounds.getX() - 45);
+    if (sidePanelOpenButton->isVisible()) {
+        //sidePanelOpenButton->setBounds (r.removeFromRight (45).withSizeKeepingCentre (27, 27));
+        sidePanelOpenButton->setBounds (iconBounds.withSizeKeepingCentre(27,27));
+    } else {
+        //sidePanelCloseButton->setBounds (r.removeFromRight (45).withSizeKeepingCentre (27, 27));
+        sidePanelCloseButton->setBounds(iconBounds.withSizeKeepingCentre(27,27));
+    }
+
     int scrollbarBuffer = 2;
     int selectedButton = 999;
     for (int i = 0; i < buttons.size(); ++i) {
@@ -477,36 +625,70 @@ void ExtensionWindow::resized()
         }
     }
 
-    container.setBounds(0, 50, juce::jmax (minWindowWidth-10, x - 10), (buttonHeight * rowCount) + padding);
+    container.setBounds(0, 50, juce::jmax (minWindowWidth-10, x - 10), headerHeight + (buttonHeight * rowCount) + padding);
     containerRight.setBounds(juce::jmax (minWindowWidth-10, x - 10), 50, getWidth()- juce::jmax (minWindowWidth, x), getHeight() - headerHeight);
     fontButtonContainer.setBounds(getWidth() - 300, headerHeight, 290, headerHeight);
-    missingImageContainer.setBounds(getWidth() - 350, headerHeight, 340, headerHeight);
+    missingImageContainer.setBounds(getWidth() - 370, headerHeight, 360, headerHeight);
+    noSongsLabel->setBounds(0, headerHeight * 4, x, 100);
+    noChordProLabel->setBounds(0, headerHeight * 4, getWidth() - x, 100);
 
-    viewport.setBounds(0, headerHeight, juce::jmax (minWindowWidth, x), getHeight() - headerHeight);
+
+    viewport.setBounds(0, headerHeight * 2, juce::jmax (minWindowWidth, x), getHeight() - headerHeight);
     viewport.setViewPosition(viewPos);
     viewportRight.setBounds(juce::jmax (minWindowWidth, x), headerHeight, getWidth() - juce::jmax (minWindowWidth, x), getHeight() - headerHeight);
 
-    btnCurrent->setBounds (0 , containerRight.getHeight()/4, containerRight.getWidth(), containerRight.getHeight()/2);
-    btnPrev->setBounds (10 , 10, containerRight.getWidth()-10, containerRight.getHeight()/4);
-    btnNext->setBounds (10 , containerRight.getHeight()*3/4, containerRight.getWidth()-10, containerRight.getHeight()/4);
-    btnModeSwitch->setBounds (15, 0, getWidth() > 230 ? 120 : 60, headerHeight);
+    //btnCurrent->setBounds (0 , containerRight.getHeight()/4, containerRight.getWidth(), containerRight.getHeight()/2);
+    //btnPrev->setBounds (10 , 10, containerRight.getWidth()-10, containerRight.getHeight()/4);
+    //btnNext->setBounds (10 , containerRight.getHeight()*3/4, containerRight.getWidth()-10, containerRight.getHeight()/4);
+    //btnModeSwitch->setBounds (15, 0, getWidth() > 230 ? 120 : 60, headerHeight);
+
+    setlistButton->setBounds(0, headerHeight, juce::jmax (minWindowWidth, x), headerHeight);
+    menuIconComponent.setBounds(x - 30, headerHeight * 1.5 - 6, 8, 12);
 
     fontDown->setBounds (80,5,50,headerHeight-10);
     fontUp->setBounds (140,5,50,headerHeight-10);
     fontMono->setBounds (200,5,80,headerHeight-10);
     fontPopOverLabel->setBounds (0, 0, 80, headerHeight);
 
-    missingImageLabel->setBounds (0, 0, 240, headerHeight);
-    createInvertedImage->setBounds (240, 5, 90, headerHeight-10);
-   
-    draggableResizer.setVisible(displayRightPanel);
-    viewportRight.setVisible(displayRightPanel);
+    missingImageLabel->setBounds (0, 0, 260, headerHeight);
+    createInvertedImage->setBounds (260, 5, 90, headerHeight-10);
+
+    preferencesContainer.setBounds(x, headerHeight, getWidth() - x, getHeight());
+    closeButton->setBounds(getWidth() - x - 70, 20, 30, 30 );
+    //prefToggle->setBounds(50, 400, 50, 50);
+    for (int i = 0; i < 4; ++i) {
+        prefButtons[i]->setBounds(50, 148 + 35 * i, 40, 40);
+    }
+    prefButtons[4]->setBounds(50, 353, 40, 40);
+    prefButtons[5]->setBounds(50, 388, 40, 40);
+
+    for (int i = 0; i < prefColorLabels.size(); ++i) {
+        prefColorLabels[i]->setBounds(50, 440 + 35 * i, 80, 30);
+    }
+    //draggableResizer.setVisible(displayRightPanel);
+    //viewportRight.setVisible(displayRightPanel);
+  
+    int setlistCount = 0;
+    /*
+    int setlistDisplayCount = 0;
+    for (int i = 0; i < setlistButtons.size(); ++i) {
+        if (setlistButtons[i]->isVisible()) ++setlistDisplayCount;
+    }
+    */
+    setlistContainer.setBounds(0, headerHeight * 2, x, getHeight()); //buttonHeight * setlistDisplayCount);
+    for (int i = 0; i < setlistButtons.size(); ++i) {
+        if (setlistButtons[i]->isVisible()) {
+            setlistButtons[i]->setBounds(0, (buttonHeight * setlistCount), x, buttonHeight);
+            setlistCount++;
+        }
+    }
 
     if (chordProForCurrentSong && viewportRight.isVisible()) {
         float runningHeight = 0.0;
         float columns = (chordProTwoColumns && chordProImagesOnly) ? 2.0 : 1.0;
         float padding = chordProImagesOnly ? chordProContainer.getWidth() * 0.005 : 0.0;
         int imageCount = chordProGetVisibleImageCount();
+        if (!chordProImagesOnly) runningHeight += chordProTopPadding;
 
         for (auto i = 0; i < chordProLines.size(); ++i) {
             if (chordProLines[i]->isVisible() && !(chordProImagesOnly && chordProLines[i]->getProperties()["type"] == "")) {
@@ -517,11 +699,13 @@ void ExtensionWindow::resized()
                 } else if (chordProLines[i]->getProperties()["type"] == "subtitle") {
                     rowHeight = 50.0 * chordProFontSize;
                 } else if (chordProLines[i]->getProperties()["type"] == "label") {
-                    rowHeight = 50.0 * chordProFontSize;
+                    rowHeight = 60.0 * chordProFontSize;
                 } else if (chordProLines[i]->getProperties()["type"] == "comment") {
                     rowHeight = 50.0 * chordProFontSize;
                 } else if (chordProLines[i]->getProperties()["type"] == "tab") {
                     rowHeight = 30.0 * chordProFontSize;
+                } else if (chordProLines[i]->getProperties()["type"] == "grid") {
+                    rowHeight = 40.0 * chordProFontSize;
                 } else if (chordProLines[i]->getProperties()["type"] == "image") {
                     rowHeight = 0.0;
                     int imageIndex = chordProLines[i]->getProperties()["imageIndex"]; 
@@ -565,8 +749,11 @@ void ExtensionWindow::resized()
 
 void ExtensionWindow::refreshUI() {
 
-    if (!lib->inSetlistMode() && lockToSetlistMode) return;
+    //if (!lib->inSetlistMode() && lockToSetlistMode) return;
+    int songIndex = lib->inSetlistMode() ? lib->getCurrentSongIndex() : extension->getButtonSelected();
+    int songPartIndex = lib->inSetlistMode() ? lib->getCurrentSongpartIndex() : 0;
 
+    //extension->log("Refresh UI. Song: " + std::to_string(songIndex));
     // Reset all buttons
     for (int i = 0; i < extension->buttons.size(); ++i) {
         extension->buttons[i]->setToggleState(false, dontSendNotification);
@@ -578,20 +765,23 @@ void ExtensionWindow::refreshUI() {
         extension->subButtons[i]->setVisible(false);
     }
     // Reset large previous/current/next titles
+    /*
     extension->btnPrev->setButtonText("");
     extension->btnCurrent->setButtonText("");
     extension->btnNext->setButtonText("");
-
-    if (lib->inSetlistMode()) {
-            int songIndex = lib->getCurrentSongIndex();
-            updateButtonLabel(SONG_TITLE);
+*/
+    //if (lib->inSetlistMode()) {
+            
+            
+            //updateButtonLabel(SONG_TITLE);
             setTitleBarName(SONG_WINDOW_TITLE);
             updateButtonNames(lib->getSongNames());
             updateSubButtonNames(extension->getSubButtonNamesByIndex(songIndex));
-            selectButton(lib->getCurrentSongIndex());
-            selectSubButton(lib->getCurrentSongpartIndex());
+            selectButton(songIndex);
+            selectSubButton(songPartIndex);//lib->getCurrentSongpartIndex());
             chordProReadFile(songIndex);
-    } else {
+   
+   /* }  else {
             int rackspaceIndex = lib->getCurrentRackspaceIndex();
             updateButtonLabel(RACKSPACE_TITLE);
             setTitleBarName(RACKSPACE_WINDOW_TITLE);
@@ -603,6 +793,7 @@ void ExtensionWindow::refreshUI() {
             extension->chordProReset();
             extension->chordProDisplayGUI(false);
     }
+    */
     extension->resized();
 }
 
@@ -619,14 +810,49 @@ void ExtensionWindow::setZeroBasedNumbering(bool zeroBased) {
     extension->resized();
 }
 
+void ExtensionWindow::setImmediateSwitching(bool immediateSwitch) {
+    extension->preferences->setProperty("ImmediateSwitching", immediateSwitch);     
+}
+
+void ExtensionWindow::setDarkMode(bool darkMode) {
+    extension->preferences->setProperty("DarkMode", darkMode); 
+    extension->chordProDarkMode = darkMode;
+    //extension->chordProRefresh();
+    //extension->repaint();
+}
+
+void ExtensionWindow::setDisplayVariationNames(bool display) {
+    extension->preferences->setProperty("DisplayVariationNames", display); 
+    displayVariationsForSong = display;
+    //refreshUI();
+}
+
+void ExtensionWindow::setFitToPageHeight(bool fitToHeight) {
+    extension->preferences->setProperty("FitToPageHeight", fitToHeight); 
+    extension->fitHeight = fitToHeight;
+    extension->fitWidthButton->setVisible(fitToHeight);
+    extension->fitHeightButton->setVisible(!fitToHeight);
+    extension->resized();
+}
+
+void ExtensionWindow::setDisplayTwoPages(bool display) {
+    extension->preferences->setProperty("DisplayTwoPages", display); 
+    extension->chordProTwoColumns = display;
+    extension->columnsOneButton->setVisible(display);
+    extension->columnsTwoButton->setVisible(!display);
+    extension->resized();
+}
+
+void ExtensionWindow::chordProSetLeftMarginLabels(bool onLeft) {
+    extension->preferences->setProperty("LeftMarginLabels", onLeft); 
+    chordProLeftLabels = onLeft;
+    //refreshUI();
+}
+
 void ExtensionWindow::toggleZeroBasedNumbering() {
     bool status = extension->preferences->getProperty("ZeroBasedNumbers");
     extension->preferences->setProperty("ZeroBasedNumbers", !status); 
     setZeroBasedNumbering(!status);
-}
-
-void ExtensionWindow::setImmediateSwitching(bool immediateSwitch) {
-    extension->preferences->setProperty("ImmediateSwitching", immediateSwitch);     
 }
 
 void ExtensionWindow::toggleImmediateSwitching() {
@@ -661,10 +887,35 @@ void ExtensionWindow::toggleLockToSetlistMode() {
 }
 
 void ExtensionWindow::toggleVariationsInSetlistMode() {
-    displayVariationsForSong = !displayVariationsForSong;
+    bool status = extension->preferences->getProperty("DisplayVariationNames");
+    extension->preferences->setProperty("DisplayVariationNames", !status); 
+    displayVariationsForSong = !status;
     refreshUI();
 }
 
+void ExtensionWindow::toggleLeftMarginLabels() {
+    bool status = extension->preferences->getProperty("LeftMarginLabels");
+    extension->preferences->setProperty("LeftMarginLabels", !status);
+    chordProLeftLabels = !status;
+    refreshUI();
+}
+
+void ExtensionWindow::toggleDarkMode() {
+    bool status = extension->preferences->getProperty("DarkMode");
+    extension->preferences->setProperty("DarkMode", !status); 
+    extension->chordProDarkMode = !status;
+    extension->chordProRefresh();
+    extension->repaint();
+}
+
+void ExtensionWindow::toggleSmallChordFont() {
+    bool status = extension->preferences->getProperty("SmallChordFont");
+    extension->preferences->setProperty("SmallChordFont", !status);
+    chordProSmallChordFont = !status;
+    refreshUI();
+}
+
+/*
 void ExtensionWindow::displayRackspaceVariationInSetlistMode(bool display) {
     extension->preferences->setProperty("RackspaceVariationInSetlistMode", display); 
     extension->resized();    
@@ -675,6 +926,7 @@ void ExtensionWindow::toggleRackspaceVariationInSetlistMode() {
     extension->preferences->setProperty("RackspaceVariationInSetlistMode", !status); 
     extension->resized();   
 }
+*/
 
 String ExtensionWindow::buttonName(int index) {
     String name = "";
@@ -722,8 +974,13 @@ int ExtensionWindow::getVisibleSubButtonCount() {
     return visible;
 }
 
+void ExtensionWindow::selectSetlistButton(int index) {
+    extension->setlistButtons[index]->setToggleState(true, dontSendNotification);
+}
+
 void ExtensionWindow::selectButton(int index) {
-    if (!lib->inSetlistMode() && lockToSetlistMode) return;
+    //if (!lib->inSetlistMode() && lockToSetlistMode) return;
+    //extension->log("Select button " + std::to_string(index));
     if (index < extension->buttons.size() && index >= 0) {
         extension->buttons[index]->setToggleState(true, dontSendNotification);
         Rectangle<int> viewportBounds = extension->viewport.getViewArea();
@@ -736,10 +993,19 @@ void ExtensionWindow::selectButton(int index) {
         if (btnY < viewY) {
             extension->viewport.setViewPosition(0, btnY - padding);
         }
-        updatePrevCurrNext(index);
+        //updatePrevCurrNext(index);
+        setSongLabel();
     }
 }
 
+void ExtensionWindow::selectSongForCurrentButton() {
+    if (lib == nullptr) return;
+        int buttonIndex = extension->getButtonSelected();
+        if (!lib->inSetlistMode()) lib->switchToSetlistView();
+        lib->switchToSong(buttonIndex, 0);
+}
+
+/*
 void ExtensionWindow::updatePrevCurrNext(int index) {
     if (index < extension->buttons.size() && index >= 0) {
         String text = extension->buttons[index]->getButtonText();
@@ -758,6 +1024,7 @@ void ExtensionWindow::updatePrevCurrNext(int index) {
         }
     }
 }
+*/
 
 bool ExtensionWindow::isSubButtonSelected(int index) {
     if (index < extension->subButtons.size() && index >= 0) {
@@ -781,7 +1048,7 @@ bool ExtensionWindow::isSubButtonsCollapsed() {
 }
 
 void ExtensionWindow::selectSubButton(int index) {
-    if (!lib->inSetlistMode() && lockToSetlistMode) return;
+    //if (!lib->inSetlistMode() && lockToSetlistMode) return;
     if (index < extension->subButtons.size() && index >= 0) {
         extension->subButtons[index]->setToggleState(true, dontSendNotification);
         updateViewportPositionForSubButtons();
@@ -810,25 +1077,32 @@ void ExtensionWindow::addButtons(int count) {
 }
 
 void ExtensionWindow::updateButtonNames(std::vector<std::string> buttonNames) {
-    if (!lib->inSetlistMode() && lockToSetlistMode) return;
+    //if (!lib->inSetlistMode() && lockToSetlistMode) return;
     int newButtonCount = buttonNames.size();
     int currentButtonCount = extension->buttons.size();
     bool border = extension->preferences->getProperty("ThickBorders");
-    if (newButtonCount > currentButtonCount) {
-        addButtons(newButtonCount-currentButtonCount);
-        currentButtonCount = newButtonCount;
-    }
-    for (auto i = 0; i < currentButtonCount; ++i) {
-        if (i < newButtonCount) {
-            extension->buttons[i]->setButtonText(buttonNames[i]);
-            extension->buttons[i]->setVisible(true);
-            extension->buttons[i]->getProperties().set("colour", DEFAULT_BUTTON_COLOR);
-            extension->buttons[i]->getProperties().set("thickBorder", border);
-        } else {
-            extension->buttons[i]->setButtonText("");
-            extension->buttons[i]->setVisible(false);
+    if (newButtonCount == 0) {
+        extension->noSongsLabel->setVisible(true);
+        //extension->log("No Songs");
+    } else {
+        extension->noSongsLabel->setVisible(false);
+        //extension->log("Has Songs");
+        if (newButtonCount > currentButtonCount) {
+            addButtons(newButtonCount-currentButtonCount);
+            currentButtonCount = newButtonCount;
         }
-    } 
+        for (auto i = 0; i < currentButtonCount; ++i) {
+            if (i < newButtonCount) {
+                extension->buttons[i]->setButtonText(buttonNames[i]);
+                extension->buttons[i]->setVisible(true);
+                extension->buttons[i]->getProperties().set("colour", DEFAULT_BUTTON_COLOR);
+                extension->buttons[i]->getProperties().set("thickBorder", border);
+            } else {
+                extension->buttons[i]->setButtonText("");
+                extension->buttons[i]->setVisible(false);
+            }
+        } 
+    }
     extension->resized();
  }
 
@@ -869,7 +1143,7 @@ void ExtensionWindow::addSubButtons(int count) {
 }
 
 void ExtensionWindow::updateSubButtonNames(std::vector<std::string> buttonNames) {
-    if (!lib->inSetlistMode() && lockToSetlistMode) return;
+    //if (!lib->inSetlistMode() && lockToSetlistMode) return;
     int newButtonCount = buttonNames.size();
     int currentButtonCount = extension->subButtons.size();
     bool border = extension->preferences->getProperty("ThickBorders");
@@ -929,28 +1203,49 @@ void ExtensionWindow::updateSubButtonNames(std::vector<std::string> buttonNames)
 
 std::vector<std::string> ExtensionWindow::getSubButtonNamesByIndex(int index) {
     std::vector<std::string> names;
+    names = displayVariationsForSong ? lib->getVariationNamesForSong(index) : lib->getSongPartNames(index);
+    /*
     if (lib->inSetlistMode()) {
         names = displayVariationsForSong ? lib->getVariationNamesForSong(index) : lib->getSongPartNames(index);
     } else {
         names = lib->getVariationNames(index);
     } 
+    */
     return names;
 } 
 
 std::string ExtensionWindow::getSubButtonNameByIndex(int index, int subIndex) {
     std::string name;
+    name = displayVariationsForSong ? lib->getVariationNameForSongPart(index, subIndex) : lib->getSongpartName(index, subIndex);
+    /*
     if (lib->inSetlistMode()) {
         name = displayVariationsForSong ? lib->getVariationNameForSongPart(index, subIndex) : lib->getSongpartName(index, subIndex);
     } else {
         name = lib->getVariationName(index, subIndex);
     } 
+    */
     return name;
 } 
+
+void ExtensionWindow::updateSetlistButtons(std::vector<std::string> buttonNames) {
+    String name = lib->getSetlistName(lib->getCurrentSetlistIndex());
+    extension->setlistButton->setButtonText(name);
+    extension->setlistContainer.setVisible(false);
+
+    int buttonCount  = buttonNames.size();
+    for (auto i = 0; i < extension->setlistButtons.size(); ++i) {
+        if (i < buttonCount) {
+            extension->setlistButtons[i]->setButtonText(buttonNames[i]);
+            extension->setlistButtons[i]->setVisible(true);
+        } else {
+            extension->setlistButtons[i]->setVisible(false);
+        }
+    }
+}
 
 bool ExtensionWindow::getDisplayVariationForSongPartStatus() {
     return displayVariationsForSong;
 }
-
 
 void ExtensionWindow::updateButtonLabel(const String& text) {
     if (text == "Songs"){ 
@@ -1003,11 +1298,13 @@ void ExtensionWindow::buttonClicked (Button* buttonThatWasClicked)
 {
    if (buttonThatWasClicked == sidePanelOpenButton.get() || buttonThatWasClicked == sidePanelCloseButton.get())
     {
-        displayRightPanel = !displayRightPanel;
-        setSize(container.getWidth() + (displayRightPanel ? 500 : 10), getHeight());
-        displayExpandedWindow(displayRightPanel);
+        //displayRightPanel = !displayRightPanel;
+        //setSize(container.getWidth() + (displayRightPanel ? 500 : 10), getHeight());
+        //displayExpandedWindow(displayRightPanel);
+        displaySongPanel = !displaySongPanel;
+        setSongPanelPosition(displaySongPanel);
 
-    } else if (buttonThatWasClicked == btnPrev.get()) {
+  /*  } else if (buttonThatWasClicked == btnPrev.get()) {
         if (lib->inSetlistMode()) {
             lib->switchToSong(juce::jmax(0, lib->getCurrentSongIndex()-1), 0);
         } else {
@@ -1019,6 +1316,7 @@ void ExtensionWindow::buttonClicked (Button* buttonThatWasClicked)
         } else {
             lib->switchToRackspace(juce::jmin(buttons.size()-1,lib->getCurrentRackspaceIndex()+1));
         }
+    */
     } else if (buttonThatWasClicked == pinUnpinnedButton.get() || buttonThatWasClicked == pinPinnedButton.get()) {
         bool newPinnedStatus = !(extension->extensionWindow->isAlwaysOnTop());
         pinUnpinnedButton->setVisible(!newPinnedStatus);
@@ -1026,7 +1324,7 @@ void ExtensionWindow::buttonClicked (Button* buttonThatWasClicked)
         extension->extensionWindow->setAlwaysOnTop(newPinnedStatus);
         if (newPinnedStatus) {
             Rectangle<int> window = getWindowPositionAndSize();
-            log("Pinned window (x,y,w,h): " + std::to_string(window.getX()) + "," + std::to_string(window.getY()) + "," + std::to_string(window.getWidth()) + "," + std::to_string(window.getHeight()));
+            //log("Pinned window (x,y,w,h): " + std::to_string(window.getX()) + "," + std::to_string(window.getY()) + "," + std::to_string(window.getWidth()) + "," + std::to_string(window.getHeight()));
         }
         resized();
     } else if (buttonThatWasClicked == fullscreenActivateButton.get() || buttonThatWasClicked == fullscreenDeactivateButton.get()) {
@@ -1041,6 +1339,7 @@ void ExtensionWindow::buttonClicked (Button* buttonThatWasClicked)
 
         fullscreenActivateButton->setVisible(!newFullscreenStatus);
         fullscreenDeactivateButton->setVisible(newFullscreenStatus);
+        /*
         if (newFullscreenStatus) {
             sidePanelCloseButton->setColours(Colours::grey, Colours::grey, Colours::grey);
             sidePanelCloseButton->setTooltip("Disabled while in fullscreen");
@@ -1050,19 +1349,21 @@ void ExtensionWindow::buttonClicked (Button* buttonThatWasClicked)
             sidePanelCloseButton->setTooltip("Close expanded window");
             sidePanelCloseButton->addListener(extension);
         }
+        */
         resized();
     } else if (buttonThatWasClicked->getProperties()["type"] == "button") {
-        bool switchRackSongImmediately = preferences->getProperty("ImmediateSwitching");
+        bool switchRackSongImmediately = true; //preferences->getProperty("ImmediateSwitching");
         bool inSetlist = lib->inSetlistMode();
-        int currentGPIndex = (inSetlist ? lib->getCurrentSongIndex() : lib->getCurrentRackspaceIndex());
         int buttonIndex = buttonThatWasClicked->getProperties()["index"];
+        int currentGPIndex = (inSetlist ? lib->getCurrentSongIndex() : -1);
         std::vector<std::string> blank;
-
+        /*
         if (!inSetlist && lockToSetlistMode) {
             lib->switchToSetlistView();
             lib->switchToSong(buttonIndex, 0);
             return;
         }
+        */
 
         // Ensure other buttons are deselected
         for (int i = 0; i < buttons.size(); ++i) {
@@ -1093,17 +1394,21 @@ void ExtensionWindow::buttonClicked (Button* buttonThatWasClicked)
             if (inSetlist) {
                 lib->switchToSong(buttonIndex, 0);
             } else {
-                lib->switchToRackspace(buttonIndex, 0);
+                //lib->switchToRackspace(buttonIndex, 0);
+                //log("Button clicked " + std::to_string(buttonIndex));
+                refreshUI();
             }
-            updatePrevCurrNext(buttonIndex);
+            //updatePrevCurrNext(buttonIndex);
+            setSongLabel();
         }
         prevButtonSelected = buttonIndex;
     } else if (buttonThatWasClicked->getProperties()["type"] == "subButton") {
-        bool switchRackSongImmediately = preferences->getProperty("ImmediateSwitching");
+        bool switchRackSongImmediately = true; //preferences->getProperty("ImmediateSwitching");
         bool inSetlist = lib->inSetlistMode();
         int subButtonIndex = buttonThatWasClicked->getProperties()["index"];
         int buttonIndex = getButtonSelected();
 
+        /*
         if (!inSetlist && lockToSetlistMode) {
             lib->switchToSetlistView();
             lib->switchToSong(buttonIndex, subButtonIndex);
@@ -1111,12 +1416,15 @@ void ExtensionWindow::buttonClicked (Button* buttonThatWasClicked)
             chordProScrollToSongPart(songpartName);
             return;
         }
+        */
         if (inSetlist) {
             lib->switchToSong(buttonIndex, subButtonIndex);
             std::string songpartName = getSubButtonNameByIndex(buttonIndex, subButtonIndex);
             chordProScrollToSongPart(songpartName);
         } else {
-            lib->switchToRackspace(buttonIndex, subButtonIndex);
+            //lib->switchToRackspace(buttonIndex, subButtonIndex);
+            std::string songpartName = getSubButtonNameByIndex(buttonIndex, subButtonIndex);
+            chordProScrollToSongPart(songpartName);
         }
         // Ensure other buttons are toggled off
         for (int i = 0; i < subButtons.size(); ++i) {
@@ -1126,17 +1434,21 @@ void ExtensionWindow::buttonClicked (Button* buttonThatWasClicked)
         }
 
         // Ensure large song/rackspace labels are in sync
+        /*
         if (!switchRackSongImmediately) {
             updatePrevCurrNext(buttonIndex);
         }
-    } else if (buttonThatWasClicked == btnModeSwitch.get()) {
-        lib->inSetlistMode() ? lib->switchToPanelView() : lib->switchToSetlistView();
+        */
+   // } else if (buttonThatWasClicked == btnModeSwitch.get()) {
+     //   lib->inSetlistMode() ? lib->switchToPanelView() : lib->switchToSetlistView();
     } else if (buttonThatWasClicked == fontDown.get()) {
-        chordProFontSize = (chordProFontSize <= CP_MIN_FONT_SIZE) ? chordProFontSize : chordProFontSize - CP_FONT_STEP_SIZE; 
-        extension->resized();
+        chordProSetFontSize((chordProFontSize <= CP_MIN_FONT_SIZE) ? chordProFontSize : chordProFontSize - CP_FONT_STEP_SIZE);
+        //chordProFontSize = (chordProFontSize <= CP_MIN_FONT_SIZE) ? chordProFontSize : chordProFontSize - CP_FONT_STEP_SIZE; 
+        //extension->resized();
     } else if (buttonThatWasClicked == fontUp.get()) {
-        chordProFontSize = (chordProFontSize >= CP_MAX_FONT_SIZE) ? chordProFontSize : chordProFontSize + CP_FONT_STEP_SIZE;
-        extension->resized();
+        chordProSetFontSize((chordProFontSize >= CP_MAX_FONT_SIZE) ? chordProFontSize : chordProFontSize + CP_FONT_STEP_SIZE);
+        //chordProFontSize = (chordProFontSize >= CP_MAX_FONT_SIZE) ? chordProFontSize : chordProFontSize + CP_FONT_STEP_SIZE;
+        //extension->resized();
     } else if (buttonThatWasClicked == fontMono.get()) {
         chordProMonospaceFont = !chordProMonospaceFont;
         extension->resized();
@@ -1144,35 +1456,59 @@ void ExtensionWindow::buttonClicked (Button* buttonThatWasClicked)
         fontButtonContainer.setVisible(!fontButtonContainer.isVisible());
         repaint();
     } else if (buttonThatWasClicked == lightDarkModeButton.get()) {
-        chordProDarkMode = !chordProDarkMode;
-        extension->chordProRefresh();
-        repaint();
+        toggleDarkMode();
+        
     } else if (buttonThatWasClicked == columnsOneButton.get()) {
-        chordProTwoColumns = false;
-        extension->columnsOneButton->setVisible(false);
-        extension->columnsTwoButton->setVisible(true);
-        extension->resized();
+        setDisplayTwoPages(false);
     } else if (buttonThatWasClicked == columnsTwoButton.get()) {
-        chordProTwoColumns = true;
-        extension->columnsOneButton->setVisible(true);
-        extension->columnsTwoButton->setVisible(false);
-        extension->resized();
+        setDisplayTwoPages(true);
     } else if (buttonThatWasClicked == fitWidthButton.get()) {
-        fitHeight = false;
-        extension->fitWidthButton->setVisible(false);
-        extension->fitHeightButton->setVisible(true);
-        extension->resized();
+        setFitToPageHeight(false);
     }  else if (buttonThatWasClicked == fitHeightButton.get()) {
-        fitHeight = true;
-        extension->fitWidthButton->setVisible(true);
-        extension->fitHeightButton->setVisible(false);
-        extension->resized();
+        setFitToPageHeight(true);
     } else if (buttonThatWasClicked == createInvertedImage.get()) {
         extension->missingImageLabel->setText(CP_DARK_MODE_IMAGE_PROCESSING, dontSendNotification);
         createInvertedImage->setVisible(false);
         extension->repaint();
         imageTimer.startTimer(TIMER_IMAGE_CONVERT);
+    } else if (buttonThatWasClicked == setlistButton.get()) {
+        setlistContainer.setVisible(!setlistContainer.isVisible());
+    } else if (buttonThatWasClicked->getProperties()["type"] == "setlistButton") {
+        //log("Setlist Button" + buttonThatWasClicked->getName());
+        lib->switchToSetlist(buttonThatWasClicked->getName().getIntValue());
+    } else if (buttonThatWasClicked == prefButtons[0]) {
+        toggleZeroBasedNumbering();
+    } else if (buttonThatWasClicked == prefButtons[1]) {
+        toggleLargeScrollArea();
+    } else if (buttonThatWasClicked == prefButtons[2]) {
+       toggleThickBorders();
+       displayPreferences();
+    } else if (buttonThatWasClicked == prefButtons[3]) {
+        toggleVariationsInSetlistMode();
+        displayPreferences();
+    } else if (buttonThatWasClicked == prefButtons[4]) {
+        toggleLeftMarginLabels();
+        displayPreferences();
+    } else if (buttonThatWasClicked == prefButtons[5]) {
+        toggleSmallChordFont();
+        displayPreferences();
+    } else if (buttonThatWasClicked == closeButton.get()) {
+        savePreferences();
+        chordProReadFile(getButtonSelected());
     }
+        //prefToggle->setState(Button::ButtonState::buttonNormal);
+        /*
+        bool status = extension->preferences->getProperty("ZeroBasedNumbers");
+     extension->prefButtons[0]->setToggleState(status, dontSendNotification);
+     status = extension->preferences->getProperty("LargeScrollArea");
+     extension->prefButtons[1]->setToggleState(status, dontSendNotification);
+     status = extension->preferences->getProperty("ThickBorders");
+     extension->prefButtons[2]->setToggleState(status, dontSendNotification);
+     status = extension->preferences->getProperty("RackspaceVariationInSetlistMode");
+     extension->prefButtons[3]->setToggleState(status, dontSendNotification);
+   
+        */
+    
 }
 
 void ExtensionWindow::displayWindow(bool display) {
@@ -1215,6 +1551,7 @@ void ExtensionWindow::initialize() {
 
 void ExtensionWindow::finalize()
 {
+    savePreferences();
     delete lib;
     lib = nullptr;
 
@@ -1224,34 +1561,52 @@ void ExtensionWindow::finalize()
 
 void ExtensionWindow::processPreferencesDefaults(StringPairArray prefs) {
     setZeroBasedNumbering(prefs.getValue("ZeroBasedNumbers", "") == "true" ? true : false);
-    extension->preferences->setProperty("ImmediateSwitching", prefs.getValue("ImmediateSwitching", "") == "false" ? false : true);
+    //extension->log(prefs.getValue("ZeroBasedNumbers", "") == "true" ? "true" : "false");
+    //extension->preferences->setProperty("ImmediateSwitching", prefs.getValue("ImmediateSwitching", "") == "false" ? false : true);
     setLargeScrollArea(prefs.getValue("LargeScrollArea", "") == "true" ? true : false);
     removeColorKeywordFromName(prefs.getValue("RemoveColorKeywordFromName", "") == "true" ? true : false); 
-    StringArray positionSize = StringArray::fromTokens(prefs.getValue("PositionAndSize", DEFAULT_WINDOW_POSITION), ",", "");
+    //StringArray positionSize = StringArray::fromTokens(prefs.getValue("PositionAndSize", DEFAULT_WINDOW_POSITION), ",", "");
     //setWindowPositionAndSize(positionSize[0].getIntValue(), positionSize[1].getIntValue(), positionSize[2].getIntValue(), positionSize[3].getIntValue());
     extension->preferences->setProperty("ThickBorders", prefs.getValue("ThickBorders", "") == "true" ? true : false);
     extension->preferences->setProperty("BorderColor", prefs.getValue("BorderColor", DEFAULT_BORDER_COLOR));
-    extension->chordProDarkMode = prefs.getValue("ChordProDarkMode", "") == "true" ? true : false;
-    displayRackspaceVariationInSetlistMode(prefs.getValue("DisplayRackspaceVariationInSetlistMode", "") == "true" ? true : false);
-    headerRackspaceColor = Colour::fromString(prefs.getValue("HeaderRackspaceColor", HEADER_RACKSPACE_COLOR));
+    setDarkMode(prefs.getValue("DarkMode", "") == "true" ? true : false);
+    //displayRackspaceVariationInSetlistMode(prefs.getValue("DisplayRackspaceVariationInSetlistMode", "") == "true" ? true : false);
+    //headerRackspaceColor = Colour::fromString(prefs.getValue("HeaderRackspaceColor", HEADER_RACKSPACE_COLOR));
     headerSongColor = Colour::fromString(prefs.getValue("HeaderSongColor", HEADER_SONG_COLOR));
-    displayVariationsForSong = prefs.getValue("DisplayVariationsInSetlistMode", "") == "true" ? true : false; 
+    setDisplayVariationNames(prefs.getValue("DisplayVariationNames", "") == "true" ? true : false); 
+    setFitToPageHeight(prefs.getValue("FitToPageHeight", "") == "true" ? true : false); 
+    setDisplayTwoPages(prefs.getValue("DisplayTwoPages", "") == "true" ? true : false); 
+    String fontSize = prefs.getValue("FontSize", "0");
+    chordProSetFontSize(fontSize == "0" ? CP_DEFAULT_FONT_SIZE : fontSize.getFloatValue());
+    chordProSetLeftMarginLabels(prefs.getValue("LeftMarginLabels", "") == "true" ? true : false); 
+    chordProSetSmallChordFont(prefs.getValue("SmallChordFont", "") == "true" ? true : false); 
+
+    extension->updatePreferencesWindow();
 }
 
 void ExtensionWindow::processPreferencesColors(StringPairArray prefs) {
     extension->buttonColors.addArray(prefs);
 }
 
-void ExtensionWindow::processPreferencesChordPro(StringPairArray prefs) {
-    extension->chordProColors.addArray(prefs);
+void ExtensionWindow::processPreferencesChordProColors(StringPairArray prefs) {
+    extension->preferencesChordProColors->setProperty("LightModeChords", prefs.getValue("LightModeChords", CP_LIGHT_CHORD_COLOR));
+    extension->preferencesChordProColors->setProperty("LightModeLyrics", prefs.getValue("LightModeLyrics", CP_LIGHT_LYRIC_COLOR));
+    extension->preferencesChordProColors->setProperty("LightModeBackground", prefs.getValue("LightModeBackground", CP_LIGHT_BACKGROUND_COLOR));
+    extension->preferencesChordProColors->setProperty("DarkModeChords", prefs.getValue("DarkModeChords", CP_DARK_CHORD_COLOR));
+    extension->preferencesChordProColors->setProperty("DarkModeLyrics", prefs.getValue("DarkModeLyrics", CP_DARK_LYRIC_COLOR));
+    extension->preferencesChordProColors->setProperty("DarkModeBackground", prefs.getValue("DarkModeBackground", CP_DARK_BACKGROUND_COLOR));
+
+    //extension->chordProColors.addArray(prefs);
     extension->chordProSetColors();
+    extension->updatePreferencesWindow();
+
 }
 
 void ExtensionWindow::processPreferencesWindowState(StringPairArray prefs) {
     StringArray positionSize = StringArray::fromTokens(prefs.getValue("PositionAndSize", DEFAULT_WINDOW_POSITION), ",", "");
-    bool extendedWindow = prefs.getValue("ExpandedWindow", "") == "true" ? true : false;
-    int divider = prefs.getValue("WindowDivider", "0").getIntValue();
-    std::string test = extendedWindow ? "Expanded" : "Not Expanded ";
+    bool extendedWindow = prefs.getValue("ExpandedWindow", "") == "false" ? false : true;
+    int divider = prefs.getValue("WindowDivider", "250").getIntValue();
+    //std::string test = extendedWindow ? "Expanded" : "Not Expanded ";
     extension->extensionWindow->setTopLeftPosition(positionSize[0].getIntValue(), positionSize[1].getIntValue());
     extension->extensionWindow->setSize(positionSize[2].getIntValue(), positionSize[3].getIntValue());
     if (extendedWindow) {
@@ -1264,6 +1619,95 @@ void ExtensionWindow::processPreferencesWindowState(StringPairArray prefs) {
     if (extension->pendingDisplayWindow) displayWindow(true);
 }
 
+void ExtensionWindow::updatePreferencesWindow() {
+     bool status = extension->preferences->getProperty("ZeroBasedNumbers");
+     extension->prefButtons[0]->setToggleState(status, dontSendNotification);
+     status = extension->preferences->getProperty("LargeScrollArea");
+     extension->prefButtons[1]->setToggleState(status, dontSendNotification);
+     status = extension->preferences->getProperty("ThickBorders");
+     extension->prefButtons[2]->setToggleState(status, dontSendNotification);
+     status = extension->preferences->getProperty("DisplayVariationNames");
+     extension->prefButtons[3]->setToggleState(status, dontSendNotification);
+     status = extension->preferences->getProperty("LeftMarginLabels");
+     extension->prefButtons[4]->setToggleState(status, dontSendNotification);
+     status = extension->preferences->getProperty("SmallChordFont");
+     extension->prefButtons[5]->setToggleState(status, dontSendNotification);
+
+    String colorText = extension->preferencesChordProColors->getProperty("LightModeChords").toString();;
+    Colour color = Colour::fromString(colorText);
+    Colour textColor = color.getBrightness() > 0.6 ? Colours::black : Colours::white;
+   
+    extension->prefColorLabels[0]->setColour(Label::backgroundColourId, color);
+    extension->prefColorLabels[0]->setText(colorText, dontSendNotification);
+    extension->prefColorLabels[0]->setColour(Label::textColourId, textColor);
+    extension->prefColorLabels[0]->setColour(Label::textWhenEditingColourId, textColor);
+
+    colorText = extension->preferencesChordProColors->getProperty("LightModeLyrics").toString();
+    color = Colour::fromString(colorText);
+    textColor = color.getBrightness() > 0.6 ? Colours::black : Colours::white;
+
+    extension->prefColorLabels[1]->setColour(Label::backgroundColourId, color);
+    extension->prefColorLabels[1]->setText(colorText, dontSendNotification);
+    extension->prefColorLabels[1]->setColour(Label::textColourId, textColor);
+    extension->prefColorLabels[1]->setColour(Label::textWhenEditingColourId, textColor);
+
+
+    colorText = extension->preferencesChordProColors->getProperty("DarkModeChords").toString();
+    color = Colour::fromString(colorText);
+    textColor = color.getBrightness() > 0.6 ? Colours::black : Colours::white;
+
+    extension->prefColorLabels[2]->setColour(Label::backgroundColourId, color);
+    extension->prefColorLabels[2]->setText(colorText, dontSendNotification);
+    extension->prefColorLabels[2]->setColour(Label::textColourId, textColor);
+    extension->prefColorLabels[2]->setColour(Label::textWhenEditingColourId, textColor);
+    
+    colorText = extension->preferencesChordProColors->getProperty("DarkModeLyrics").toString();
+    color = Colour::fromString(colorText);
+    textColor = color.getBrightness() > 0.6 ? Colours::black : Colours::white;
+    
+    extension->prefColorLabels[3]->setColour(Label::backgroundColourId, color);
+    extension->prefColorLabels[3]->setText(colorText, dontSendNotification);
+    extension->prefColorLabels[3]->setColour(Label::textColourId, textColor);
+    extension->prefColorLabels[3]->setColour(Label::textWhenEditingColourId, textColor);
+}
+
+void ExtensionWindow::updatePreferencesColors() {
+    String colorText = extension->prefColorLabels[0]->getText();
+    Colour color = Colour::fromString(colorText);
+    Colour textColor = color.getBrightness() > 0.6 ? Colours::black : Colours::white;
+    
+    extension->preferencesChordProColors->setProperty("LightModeChords", colorText);
+    extension->prefColorLabels[0]->setColour(Label::backgroundColourId, color);
+    extension->prefColorLabels[0]->setColour(Label::textColourId, textColor);
+    extension->prefColorLabels[0]->setColour(Label::textWhenEditingColourId, textColor);
+
+    colorText = extension->prefColorLabels[1]->getText();
+    color = Colour::fromString(colorText);
+    textColor = color.getBrightness() > 0.6 ? Colours::black : Colours::white;
+    
+    extension->preferencesChordProColors->setProperty("LightModeLyrics", colorText);
+    extension->prefColorLabels[1]->setColour(Label::backgroundColourId, color);
+    extension->prefColorLabels[1]->setColour(Label::textColourId, textColor);
+    extension->prefColorLabels[1]->setColour(Label::textWhenEditingColourId, textColor);
+
+    colorText = extension->prefColorLabels[2]->getText();
+    color = Colour::fromString(colorText);
+    textColor = color.getBrightness() > 0.6 ? Colours::black : Colours::white;
+    
+    extension->preferencesChordProColors->setProperty("DarkModeChords", colorText);
+    extension->prefColorLabels[2]->setColour(Label::backgroundColourId, color);
+    extension->prefColorLabels[2]->setColour(Label::textColourId, textColor);
+    extension->prefColorLabels[2]->setColour(Label::textWhenEditingColourId, textColor);
+
+    colorText = extension->prefColorLabels[3]->getText();
+    color = Colour::fromString(colorText);
+    textColor = color.getBrightness() > 0.6 ? Colours::black : Colours::white;
+    
+    extension->preferencesChordProColors->setProperty("DarkModeLyrics", colorText);
+    extension->prefColorLabels[3]->setColour(Label::backgroundColourId, color);
+    extension->prefColorLabels[3]->setColour(Label::textColourId, textColor);
+    extension->prefColorLabels[3]->setColour(Label::textWhenEditingColourId, textColor);
+}
 
 void ExtensionWindow::removeColorKeywordFromName(bool remove) {
     extension->preferences->setProperty("RemoveColorKeywordFromName", remove); 
@@ -1316,6 +1760,17 @@ void ExtensionWindow::chordProProcessText(std::string text) {
     String directiveName;
     String directiveValue;
     bool tabLine = false;
+    //bool tabLineFirst = false;
+    String tabLabel;
+    bool gridLine = false;
+    //bool gridLineFirst = false;
+    String gridLabel;
+    int gridBarCharacterLength = 0;
+    bool chorusLine = false;
+    //bool chorusLineFirst = false;
+    String chorusLabel;
+    String sectionLabel;
+    bool firstSectionLine = false;
     extension->chordProReset();
     bool chordProNonImage = false;
 
@@ -1338,6 +1793,8 @@ void ExtensionWindow::chordProProcessText(std::string text) {
         if (line.trim() != "") firstLineWithContent = true;
         if (firstLineWithContent) {
             extension->chordProLines[i]->setVisible(true);
+            extension->chordProLines[i]->getProperties().set("section", ""); 
+            extension->chordProLines[i]->getProperties().set("sectionLabel", ""); 
             if (line.contains("{")) { // Directive
                 extension->chordProLines[i]->getProperties().set("type", "directive"); 
                 line = line.removeCharacters("{}");
@@ -1360,6 +1817,8 @@ void ExtensionWindow::chordProProcessText(std::string text) {
                     } else if (directiveName.contains("start_of") || directiveName.contains("end_of") || (directiveName.length() == 3 && (directiveName.contains("so") || directiveName.contains("eo")))) {
                         extension->chordProLines[i]->setLookAndFeel(extension->chordProLabelLnF);
                         extension->chordProLines[i]->getProperties().set("type", "label"); 
+                        extension->chordProLines[i]->setVisible(!chordProLeftLabels);
+                        
                     } else if (directiveName == "image") {
                             extension->chordProLines[i]->getProperties().set("type", "image");                             
                             #if JUCE_WINDOWS
@@ -1406,18 +1865,92 @@ void ExtensionWindow::chordProProcessText(std::string text) {
                 } else {
                     extension->chordProLines[i]->setVisible(false);
                     directiveName = line.removeCharacters(" ");
+                    directiveValue = "";
                 }
                 if (directiveName == "start_of_tab" || directiveName == "sot") {
                     tabLine = true;
+                    //tabLineFirst = true;
+                    firstSectionLine = true;
+                    tabLabel = directiveValue == "" ? "Tab" : directiveValue;
+                    sectionLabel = directiveValue == "" ? "Tab" : directiveValue;
+
                 } else if (directiveName == "end_of_tab" || directiveName == "eot") {
                     tabLine = false;
+                    //tabLineFirst = false;
+                } else if (directiveName.startsWith("start_of_grid") || directiveName.startsWith("sog")) {
+                    gridLine = true;
+                    //gridLineFirst = true;
+                    firstSectionLine = true;
+                    gridLabel = directiveValue == "" ? "Grid" : directiveValue;
+                    sectionLabel = directiveValue == "" ? "Grid" : directiveValue;
+
+                } else if (directiveName == "end_of_grid" || directiveName == "eog") {
+                    gridLine = false;
+                    //gridLineFirst = false;
+                } else if (directiveName == "start_of_chorus" || directiveName == "soc") {
+                    chorusLine = true;
+                    //chorusLineFirst = true;
+                    firstSectionLine = true;
+                    chorusLabel = directiveValue == "" ? "Chorus" : directiveValue;
+                    sectionLabel = directiveValue == "" ? "Chorus" : directiveValue;
+
+                } else if (directiveName == "end_of_chorus" || directiveName == "eoc") {
+                    chorusLine = false;
+                    //chorusLineFirst = false;
+                } else if (directiveName == "start_of_verse" || directiveName == "sov") {
+                    firstSectionLine = true;
+                    sectionLabel = directiveValue == "" ? "Verse" : directiveValue;
+
+                } else if (directiveName == "end_of_verse" || directiveName == "eov") {
+                    //chorusLine = false;
+                    //chorusLineFirst = false;
+                } else {
+                    firstSectionLine = false;
                 }
                 extension->chordProLines[i]->setText(directiveValue, dontSendNotification);
             } else {
                 if (tabLine) {
                     extension->chordProLines[i]->setLookAndFeel(extension->chordProTabLnF);
                     extension->chordProLines[i]->getProperties().set("type", "tab");
-                } 
+                    //if (tabLineFirst) extension->chordProLines[i]->getProperties().set("sectionLabel", tabLabel);
+                    //tabLineFirst = false;
+                } else if (gridLine) {
+                    extension->chordProLines[i]->setLookAndFeel(extension->chordProGridLnF);
+                    extension->chordProLines[i]->getProperties().set("type", "grid");
+                    //if (gridLineFirst) extension->chordProLines[i]->getProperties().set("sectionLabel", gridLabel);
+                    //gridLineFirst = false;
+
+                    // Store any grid comment and then remove from grid line
+                    String postComment = line.substring(line.lastIndexOf("|") + 1, line.length()).trim(); 
+                    extension->chordProLines[i]->getProperties().set("gridComment", postComment);
+                    line = line.substring(0, line.lastIndexOf("|") + 1); // Exclude comments after the bar
+
+                    // Calculate maximum character length of each bar
+                    String temp = line.replace(" ","");
+                    temp = temp.replace("||","|").replace("|:","|").replace(":|","|"); // Convert special characters to single character
+                    
+                    StringArray parts = StringArray::fromTokens(temp,"|","");
+                    parts.removeEmptyStrings(true);
+                    for (int j = 0; j < parts.size(); ++j) {
+                        int length = parts[j].length();
+                        if (length > gridBarCharacterLength) {
+                            gridBarCharacterLength = length;
+                            //extension->log("Grid bar length: " + std::to_string(gridBarCharacterLength));
+
+                        }
+                    }
+                    extension->chordProLines[i]->getProperties().set("gridBars", parts.size());
+                    //extension->log("Grid bars: " + std::to_string(parts.size()));
+                } else if (chorusLine) {
+                    extension->chordProLines[i]->getProperties().set("section", "chorus"); 
+                    //if (chorusLineFirst) extension->chordProLines[i]->getProperties().set("sectionLabel", chorusLabel);
+                    //chorusLineFirst = false;
+                }
+                if (firstSectionLine) {
+                    extension->chordProLines[i]->getProperties().set("sectionLabel", sectionLabel);
+                    sectionLabel = "";
+                    firstSectionLine = false;
+                }
                 if (line.contains("[")) {
                     String excludeChords = std::regex_replace(line.toStdString(), std::regex("\\[(.*?)\\]"), "");
                     if (excludeChords.trim() == "") {
@@ -1439,7 +1972,7 @@ void ExtensionWindow::chordProProcessText(std::string text) {
                     } else {
                         extension->chordProLines[i]->getProperties().set("type", "chordAndLyrics"); 
                     }
-                } else if (line.trim() != ""){
+                } else if (line.trim() != "" && !gridLine && !tabLine){
                     extension->chordProLines[i]->getProperties().set("type", "lyricOnly"); 
                 }
                 extension->chordProLines[i]->setText(line.trim(), dontSendNotification);
@@ -1450,18 +1983,32 @@ void ExtensionWindow::chordProProcessText(std::string text) {
         }
     }
     if (!chordProNonImage) extension->chordProImagesOnly = true;
+    if (gridBarCharacterLength > 0) {
+        //extension->log("Grid Bar: " + std::to_string(gridBarCharacterLength));
+        for (int i = 0; i < extension->chordProLines.size(); ++i) { 
+            //extension->log("Line " + extension->chordProLines[i]->getProperties()["type"].toString());
+            if (extension->chordProLines[i]->getProperties()["type"] == "grid") {
+                //extension->log("Grid line " + std::to_string(i));
+                extension->chordProLines[i]->getProperties().set("gridBarLength", gridBarCharacterLength); 
+                //extension->log("Grid bar: " + std::to_string(gridBarCharacterLength));
+            }
+        }
+    }
     extension->chordProDisplayGUI(true);
 }
 
 void ExtensionWindow::chordProReadFile(int index) {
+    if (lib == nullptr) return;
     std::string chordProFileText;
     std::string chordProFile = lib->getChordProFilenameForSong(index);
+    //extension->log(std::to_string(index) + ": " + chordProFile);
     extension->chordProForCurrentSong = (chordProFile == "") ? false : true;
     if (extension->chordProForCurrentSong) {
         File chordProFullPath = File(chordProFile);
         if (chordProFullPath.existsAsFile()) {
             gigperformer::sdk::GPUtils::loadTextFile(chordProFullPath.getFullPathName().toStdString(), chordProFileText);
             chordProProcessText(chordProFileText);   
+            extension->noChordProLabel->setVisible(false);
         } else {
             extension->chordProForCurrentSong = false;
         }
@@ -1475,7 +2022,8 @@ void ExtensionWindow::chordProReadFile(int index) {
 
 void ExtensionWindow::chordProRefresh() {
     Point<int> viewRightPos = viewportRight.getViewPosition();
-    extension->chordProReadFile(lib->getCurrentSongIndex());
+    int songIndex = lib->inSetlistMode() ? lib->getCurrentSongIndex() : extension->getButtonSelected();
+    extension->chordProReadFile(songIndex);
     extension->chordProDisplayGUI(true);
     viewportRight.setViewPosition(viewRightPos);
 }
@@ -1493,7 +2041,7 @@ void ExtensionWindow::chordProReset() {
     }
     missingImageContainer.setVisible(false);
     extension->chordProImagesOnly = false;
-
+    extension->noChordProLabel->setVisible(true);
 }
 
 void ExtensionWindow::chordProDisplayGUI(bool display) { 
@@ -1503,15 +2051,17 @@ void ExtensionWindow::chordProDisplayGUI(bool display) {
     columnsTwoButton->setVisible(display && displayRightPanel && chordProImagesOnly && !chordProTwoColumns);
     fitWidthButton->setVisible(display && displayRightPanel && chordProImagesOnly && fitHeight);
     fitHeightButton->setVisible(display && displayRightPanel && chordProImagesOnly && !fitHeight);
-
+    preferencesContainer.setVisible(false);
     fontButtonContainer.setVisible(false);
     if (display) { 
         extension->viewportRight.setViewedComponent(&extension->chordProContainer, false);
+        extension->chordProContainer.setVisible(true);
         extension->chordProSetColors();
     } else {
         missingImageContainer.setVisible(false);
         if (!chordProForCurrentSong) {
             extension->viewportRight.setViewedComponent(&extension->containerRight, false);
+            extension->containerRight.setVisible(true);
             viewPortBackground = Colour::fromString(BACKGROUND_COLOR);
         }
     }
@@ -1521,22 +2071,33 @@ void ExtensionWindow::chordProDisplayGUI(bool display) {
 
 void ExtensionWindow::chordProSetColors() { 
     if (chordProDarkMode) {
-        chordProLyricColor = Colour::fromString(extension->chordProColors.getValue("ChordProDarkModeColorsLyrics",CP_DARK_LYRIC_COLOR));
-        chordProChordColor = Colour::fromString(extension->chordProColors.getValue("ChordProDarkModeColorsChords",CP_DARK_CHORD_COLOR));
+        chordProLyricColor = Colour::fromString(extension->preferencesChordProColors->getProperty("DarkModeLyrics").toString());
+        chordProChordColor = Colour::fromString(extension->preferencesChordProColors->getProperty("DarkModeChords").toString());
         if (chordProImagesOnly) {
             viewPortBackground = Colour::fromString(CP_DARK_IMAGES_BACKGROUND_COLOR);
         } else {
-            viewPortBackground = Colour::fromString(extension->chordProColors.getValue("ChordProDarkModeColorsBackground",CP_DARK_BACKGROUND_COLOR));
+            viewPortBackground = Colour::fromString(extension->preferencesChordProColors->getProperty("DarkModeBackground").toString());
         }
     } else {
-        chordProLyricColor = Colour::fromString(extension->chordProColors.getValue("ChordProLightModeColorsLyrics",CP_LIGHT_LYRIC_COLOR));
-        chordProChordColor = Colour::fromString(extension->chordProColors.getValue("ChordProLightModeColorsChords",CP_LIGHT_CHORD_COLOR));
+        chordProLyricColor = Colour::fromString(extension->preferencesChordProColors->getProperty("LightModeLyrics").toString());
+        chordProChordColor = Colour::fromString(extension->preferencesChordProColors->getProperty("LightModeChords").toString());
         if (chordProImagesOnly) {
             viewPortBackground = Colour::fromString(CP_LIGHT_IMAGES_BACKGROUND_COLOR);
         } else {
-            viewPortBackground = Colour::fromString(extension->chordProColors.getValue("ChordProLightModeColorsBackground",CP_LIGHT_BACKGROUND_COLOR));
+            viewPortBackground = Colour::fromString(extension->preferencesChordProColors->getProperty("LightModeBackground").toString());
         }
     }
+}
+
+void ExtensionWindow::chordProSetFontSize(float newSize) {
+    extension->preferences->setProperty("FontSize", newSize);    
+    chordProFontSize = newSize;
+    extension->resized();
+}
+
+void ExtensionWindow::chordProSetSmallChordFont(bool isSmall) {
+    extension->preferences->setProperty("SmallChordFont", isSmall);
+    chordProSmallChordFont = isSmall;
 }
 
 void ExtensionWindow::chordProImagesCheckAndAdd(int index) {
@@ -1563,7 +2124,7 @@ int ExtensionWindow::chordProGetVisibleImageCount() {
 }
 
 void ExtensionWindow::chordProCreateInvertedImages() {
-    MessageManager::getInstance()->callAsync([]() {
+    //MessageManager::getInstance()->callAsync([]() {
         for (int i = 0; i < extension->chordProImages.size(); ++i) { 
             if (extension->chordProImages[i]->isVisible()) {
                 String path = extension->chordProImages[i]->getProperties()["path"];
@@ -1595,15 +2156,17 @@ void ExtensionWindow::chordProCreateInvertedImages() {
         extension->missingImageContainer.setVisible(false);
         extension->missingImageLabel->setText(CP_NO_DARK_MODE_IMAGES, dontSendNotification);
         extension->createInvertedImage->setVisible(true);
-    });
+   // });
 }
 
 void ExtensionWindow::log(String text) {
+    if (lib == nullptr) return;
     lib->consoleLog(LOG_PREFIX + text.toStdString());
 }
 
 void ExtensionWindow::setSongLabel() {
-    if (!lib->inSetlistMode()) return;
+    //if (!lib->inSetlistMode()) return;
+    /*
     int divider = extension->draggableResizer.getX();
     if (divider <= 10) {
         std::string songName = lib->getSongName(lib->getCurrentSongIndex());
@@ -1617,14 +2180,94 @@ void ExtensionWindow::setSongLabel() {
              extension->resized();
         }
     }
+    */
+    int songIndex = lib->inSetlistMode() ? lib->getCurrentSongIndex() : extension->getButtonSelected();
+    std::string songName = lib->getSongName(songIndex);
+    extension->header->setText(songName, dontSendNotification);
+    extension->resized();
+}
+
+void ExtensionWindow::displayFontContainer(bool display) {
+    extension->fontButtonContainer.setVisible(display);
+}
+
+void ExtensionWindow::displaySetlistContainer(bool display) {
+    extension->setlistContainer.setVisible(display);
+}
+
+void ExtensionWindow::displayPreferences() {
+    extension->chordProContainer.setVisible(false);
+    extension->containerRight.setVisible(false);
+    extension->preferencesContainer.setVisible(true);
+    viewPortBackground = Colour::fromString(BACKGROUND_COLOR);
+
+    //String test = getDefaults();
+    /*
+    if (extension->chordProDarkMode) {
+        viewPortBackground = Colour::fromString(CP_DARK_BACKGROUND_COLOR);
+    } else {
+        viewPortBackground = Colour::fromString(CP_LIGHT_BACKGROUND_COLOR);
+    }
+    */
+    //extension->chordProSetColors();
+    //extension->viewportRight.setViewedComponent(&extension->preferencesContainer);
+}
+
+void ExtensionWindow::setSongPanelPosition(bool display) {
+    auto bounds = extension->draggableResizer.getBounds();
+    int newX = display ? 250 : 0;
+    extension->draggableResizer.setBounds(bounds.withX(newX));
+    extension->container.setBounds(extension->container.getBounds().withWidth(newX));
+    extension->sidePanelCloseButton->setVisible(display);
+    extension->sidePanelOpenButton->setVisible(!display);
+    extension->resized();
+}
+
+void ExtensionWindow::checkSongListPosition() {
+    String headerLabel = extension->header->getText();
+    Font headerLabelFont = extension->header->getFont();
+    int headerLabelWidth = headerLabelFont.getStringWidth(headerLabel);
+    bool display = extension->draggableResizer.getX() > 0;
+    extension->sidePanelCloseButton->setVisible(display && extension->sidePanelCloseButton->getX() > headerLabelWidth + 20);
+    extension->sidePanelOpenButton->setVisible(!display && extension->sidePanelOpenButton->getX() > headerLabelWidth + 20);
+    extension->displaySongPanel = display;
+    extension->resized();
+}
+
+String ExtensionWindow::getDefaults() {
+    //String expandedWindow = extension->displayRightPanel ? "ExpandedWindow = true" : "ExpandedWindow = false";
+    //String divider = "WindowDivider = " + String(extension->draggableResizer.getX());
+    //return positionSize + "\n" + expandedWindow + "\n" + divider;
+    String defaults;
+    NamedValueSet prefs = extension->preferences->getProperties();
+    for (int i = 0; i < prefs.size(); ++i) { 
+    //for (const auto& pref : prefs) {
+        String value = prefs.getValueAt(i).toString();
+        if (value == "0") { value = "false";}
+        else if (value == "1") { value = "true";}
+        //extension->log(prefs.getName(i).toString() + " = " + value);
+        defaults += (prefs.getName(i).toString() + " = " + value + "\n");
+
+    }
+    return defaults;
+}
+
+String ExtensionWindow::getChordProColors() {
+    String text;
+    NamedValueSet prefs = extension->preferencesChordProColors->getProperties();
+    for (int i = 0; i < prefs.size(); ++i) { 
+        String value = prefs.getValueAt(i).toString();
+        text += (prefs.getName(i).toString() + " = " + value + "\n");
+    }
+    return text;
 }
 
 String ExtensionWindow::getWindowState() {
     Rectangle<int> window = getWindowPositionAndSize();
     String positionSize = "PositionAndSize = " + String(window.getX()) + "," + String(window.getY()) + "," + String(window.getWidth()) + "," + String(window.getHeight());
-    String expandedWindow = extension->displayRightPanel ? "ExpandedWindow = true" : "ExpandedWindow = false";
+    //String expandedWindow = extension->displayRightPanel ? "ExpandedWindow = true" : "ExpandedWindow = false";
     String divider = "WindowDivider = " + String(extension->draggableResizer.getX());
-    return positionSize + "\n" + expandedWindow + "\n" + divider;
+    return positionSize + "\n" + divider;
 }
 
 void ExtensionWindow::saveWindowState() {
@@ -1642,13 +2285,41 @@ void ExtensionWindow::saveWindowState() {
     prefs.replaceWithText(content);
 }
 
+void ExtensionWindow::savePreferences() {
+    if (!extension->prefsLoaded) return;
+
+    String path = extensionPath + PREF_FILENAME;
+    File prefs = File(path);
+    prefs.create();
+    String content;// = prefs.loadFileAsString();
+
+    // Defaults
+    String defaults = getDefaults();
+
+    // ChordPro Colors
+    String chordProColors = getChordProColors();
+
+    // Window size/position
+    String windowState = getWindowState();
+    /*
+    int position = content.indexOf("[WindowLastSavedState]");
+    if (position > 0) {
+        content = content.substring(0, position);
+    }
+    content = content.trimEnd() + "\n\n[WindowLastSavedState]\n" + windowState;
+    */
+    content = "[Defaults] \n" + defaults + "\n[LyricChordColors]\n" + chordProColors + "\n[WindowLastSavedState]\n" + windowState;
+    prefs.replaceWithText(content);
+}
+
 void ExtensionWindow::restartWindowTimer() {
     extension->windowTimer.stopTimer();
     extension->windowTimer.startTimer(TIMER_WINDOW_STATE);
 }
 
 void MyDocumentWindow::closeButtonPressed() { 
-    ExtensionWindow::saveWindowState();
+    //ExtensionWindow::saveWindowState();
+    ExtensionWindow::savePreferences();
     ExtensionWindow::displayWindow(false);
 }
 
@@ -1657,15 +2328,24 @@ void MyDocumentWindow::moved() {
         ExtensionWindow::restartWindowTimer();
 }
 
+void ChordProContainer::mouseDown (const MouseEvent& e)
+{
+    ExtensionWindow::displayFontContainer(false);
+    ExtensionWindow::displaySetlistContainer(false);
+}
+
 void ClockTimer::timerCallback() {
     ExtensionWindow::updateClock(Time::getCurrentTime().toString(false, true, false, true));
 }
 
 void RefreshTimer::timerCallback() {
-    if (!lib->inSetlistMode() && lockToSetlistMode) return;
-    ExtensionWindow::compareButtonNames(lib->inSetlistMode() ? lib->getSongNames() : lib->getRackspaceNames());
+    //if (!lib->inSetlistMode() && lockToSetlistMode) return;
+    //ExtensionWindow::compareButtonNames(lib->inSetlistMode() ? lib->getSongNames() : lib->getRackspaceNames());
+    if (lib == nullptr) return;
+    ExtensionWindow::compareButtonNames(lib->getSongNames());
     ExtensionWindow::compareSubButtonNames(ExtensionWindow::getSubButtonNamesByIndex(ExtensionWindow::getButtonSelected()));
-    ExtensionWindow::setSongLabel();
+    ExtensionWindow::checkSongListPosition();
+    //ExtensionWindow::setSongLabel();
 }
 
 void CreateImageTimer::timerCallback() {
@@ -1674,6 +2354,7 @@ void CreateImageTimer::timerCallback() {
 }
 
 void WindowChangeTimer::timerCallback() {
-    ExtensionWindow::saveWindowState();
+    //ExtensionWindow::saveWindowState();
+    ExtensionWindow::savePreferences();
     this->stopTimer();
 }

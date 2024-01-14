@@ -11,8 +11,8 @@
 // Define an XML string describing your product
 const std::string XMLProductDescription =
     "<Library>"
-    "<Product Name=\"GP Selector\" Version=\"1.6b2\" BuildDate=\"02/09/2022\"></Product> "
-    "<Description>Rackspace and Song Selector</Description>"
+    "<Product Name=\"GP Lyrics/Chords\" Version=\"1.6b2\" BuildDate=\"01/01/2024\"></Product> "
+    "<Description>Lyrics and Chords Viewer</Description>"
     "<ImagePath></ImagePath>"
     "</Library>";
 
@@ -68,11 +68,12 @@ public:
     std::string GetProductDescription() override; // This MUST be defined in your class
     std::vector<std::string> getRackspaceNames();
     std::vector<std::string> getVariationNames(int rackspaceIndex);
+    std::vector<std::string> getSetlistNames();
     std::vector<std::string> getSongNames();
     std::vector<std::string> getSongPartNames(int songIndex);
     std::vector<std::string> getVariationNamesForSong(int songIndex);
 
 private:
     std::vector<std::vector<std::string>> getAllVariationNames();
-    void readPreferencesFile(std::string onlySection);
+    void readPreferencesFile();
 };

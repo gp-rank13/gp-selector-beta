@@ -57,12 +57,130 @@ public:
   } 
 };
 
+class ChordProContainer : public Component
+{
+public:
+  void mouseDown (const MouseEvent& e) override;
+
+};
+
+class SetlistContainer : public Component
+{
+public:
+  void paint(Graphics& g) override {
+    g.fillAll (Colour (0xFF1A1A1A));
+  } ;
+
+};
+
+class PreferencesContainer : public Component
+{
+public:
+  void paint(Graphics& g) override {
+    //g.fillAll (Colour (0xFF1A1A1A));
+    int indent = 50;
+    int prefIndent = 100;
+    int colorIndent = 140;
+    int titleHeight = 50;
+    int subtitleHeight = 40;
+    int prefHeight = 35;
+    int runningY = titleHeight;
+
+    g.setColour(Colours::white);
+    g.setFont (Font (40.0f, Font::plain).withTypefaceStyle ("Regular"));
+    g.drawFittedText ("Preferences",
+      indent, 10, getWidth(), titleHeight,
+      Justification::left, 1, 1.0f);
+
+    runningY += titleHeight;
+    
+    g.setColour(Colour (0xFFD0D0D0));
+    g.setFont (Font (30.0f, Font::plain).withTypefaceStyle ("Regular"));
+    g.drawFittedText ("Song List",
+      indent, runningY, getWidth(), subtitleHeight,
+      Justification::left, 1, 1.0f);
+    
+    runningY += titleHeight;
+
+    g.setFont (Font (20.0f, Font::plain).withTypefaceStyle ("Regular"));
+    g.drawFittedText ("Zero-based numbering",
+      prefIndent, runningY, getWidth(), prefHeight,
+      Justification::left, 1, 1.0f);
+
+    runningY += prefHeight;
+    
+    g.drawFittedText ("Large scroll area",
+      prefIndent, runningY, getWidth(), prefHeight,
+      Justification::left, 1, 1.0f);
+    
+    runningY += prefHeight;
+
+    g.drawFittedText ("Thick borders for selected songs/parts",
+      prefIndent, runningY, getWidth(), prefHeight,
+      Justification::left, 1, 1.0f);
+    
+    runningY += prefHeight;
+    
+    g.drawFittedText ("Display variation names instead of song part names",
+      prefIndent, runningY, getWidth(), prefHeight,
+      Justification::left, 1, 1.0f);
+
+    runningY += titleHeight;
+
+    g.setFont (Font (30.0f, Font::plain).withTypefaceStyle ("Regular"));
+    g.drawFittedText ("Lyrics/Chords",
+      indent, runningY, getWidth(), subtitleHeight,
+      Justification::left, 1, 1.0f);
+
+    runningY += titleHeight;
+    
+    g.setFont (Font (20.0f, Font::plain).withTypefaceStyle ("Regular"));
+    g.drawFittedText ("Display section labels in left margin",
+      prefIndent, runningY, getWidth(), prefHeight,
+      Justification::left, 1, 1.0f);
+    
+    runningY += prefHeight;
+
+    g.drawFittedText ("Use smaller font for chords above lyrics",
+      prefIndent, runningY, getWidth(), prefHeight,
+      Justification::left, 1, 1.0f);
+
+    runningY += (prefHeight + 12);
+
+    g.drawFittedText ("Light mode chord color",
+      colorIndent, runningY, getWidth(), prefHeight,
+      Justification::left, 1, 1.0f);
+
+    runningY += prefHeight;
+
+    g.drawFittedText ("Light mode lyric color",
+      colorIndent, runningY, getWidth(), prefHeight,
+      Justification::left, 1, 1.0f);
+    
+    runningY += prefHeight;
+
+    g.drawFittedText ("Dark mode chord color",
+      colorIndent, runningY, getWidth(), prefHeight,
+      Justification::left, 1, 1.0f);
+    
+    runningY += prefHeight;
+
+    g.drawFittedText ("Dark mode lyric color",
+      colorIndent, runningY, getWidth(), prefHeight,
+      Justification::left, 1, 1.0f);
+  } ;
+
+};
+
 class RightViewPort : public Viewport
 {
 public:
   void paint(Graphics& g) override {
     g.fillAll (viewPortBackground);
-  } 
+  } ;
+
+  //void mouseDown (const MouseEvent& e) override;
+
 };
 
 class MyDocumentWindow : public DocumentWindow
@@ -100,21 +218,31 @@ public:
   void static compareSubButtonNames(std::vector<std::string> buttonNames);
   std::vector<std::string> static getSubButtonNamesByIndex(int index);
   std::string static getSubButtonNameByIndex(int index, int subIndex);
+  void static updateSetlistButtons(std::vector<std::string> buttonNames);
   bool static isButtonSelected(int index);
   int static getButtonSelected();
   int static getVisibleButtonCount();
   int static getVisibleSubButtonCount();
   bool static getDisplayVariationForSongPartStatus();
   void static selectButton(int index);
-  void static updatePrevCurrNext(int index);
+  void static selectSetlistButton(int index);
+  //void static updatePrevCurrNext(int index);
   bool static isSubButtonSelected(int index);
   bool static isSubButtonsCollapsed(); 
   void static selectSubButton(int index);
   void static selectButtonAndSubButton(int index, std::vector<std::string> buttonNames);
+  void static selectSongForCurrentButton();
   void static updateClock(const String& formattedTime);
   void static setZeroBasedNumbering(bool zeroBased);
   void static setImmediateSwitching(bool immediateSwitch);
   void static setLargeScrollArea(bool largeScrollArea);
+  void static setDarkMode(bool darkMode);
+  void static setDisplayVariationNames(bool display);
+  void static setFitToPageHeight(bool fitToHeight);
+  void static setDisplayTwoPages(bool display);
+  void static chordProSetFontSize(float newSize);
+  void static chordProSetLeftMarginLabels(bool onLeft);
+  void static chordProSetSmallChordFont(bool isSmall);
   void static updateViewportPositionForSubButtons();
   void static toggleZeroBasedNumbering();
   void static toggleImmediateSwitching();
@@ -122,21 +250,29 @@ public:
   void static toggleThickBorders();  
   void static toggleLockToSetlistMode();
   void static toggleVariationsInSetlistMode();
-  void static displayRackspaceVariationInSetlistMode(bool display);
-  void static toggleRackspaceVariationInSetlistMode();
+  void static toggleLeftMarginLabels();
+  void static toggleDarkMode();
+  void static toggleSmallChordFont();
+  //void static displayRackspaceVariationInSetlistMode(bool display);
+  //void static toggleRackspaceVariationInSetlistMode();
   String buttonName(int index);
   void static displayWindow(bool display);
   void static displayExpandedWindow(bool display);
+  void static checkSongListPosition();
   void static scrollWindow(double value);
   void static setTitleBarName(const String& name);
   void static processPreferencesDefaults(StringPairArray prefs);
   void static processPreferencesColors(StringPairArray prefs);
-  void static processPreferencesChordPro(StringPairArray prefs);
+  void static processPreferencesChordProColors(StringPairArray prefs);
   void static processPreferencesWindowState(StringPairArray prefs);
   void static removeColorKeywordFromName(bool remove);
   void static refreshUI();
   void static setWindowPositionAndSize(int x, int y, int w, int h);
   void static setSongLabel();
+  void static displayFontContainer(bool display);
+  void static displaySetlistContainer(bool display);
+  void static displayPreferences();
+
   Image static getWindowIcon();
   void mouseDrag ( const MouseEvent& /*e*/) override
     {
@@ -150,10 +286,12 @@ public:
   void static chordProScrollToSongPart(std::string text);
   void chordProDisplayGUI(bool display);
   void chordProSetColors();
+  //void chordProSetFontSize(float newSize);
   void chordProImagesCheckAndAdd(int index);
   int chordProGetVisibleImageCount();
   void static chordProCreateInvertedImages();
   void static saveWindowState();
+  void static savePreferences();
   void static restartWindowTimer();
 
   static ExtensionWindow* extension;
@@ -174,8 +312,13 @@ public:
   SharedResourcePointer<chordProComment> chordProCommentLnF;
   SharedResourcePointer<chordProLabel> chordProLabelLnF;  
   SharedResourcePointer<chordProTab> chordProTabLnF;
-  SharedResourcePointer<popOverLookAndFeel>popOverLnf;
-  SharedResourcePointer<popOverLabel>popOverLabelLnf;
+  SharedResourcePointer<chordProGrid> chordProGridLnF;
+  SharedResourcePointer<popOverLookAndFeel> popOverLnf;
+  SharedResourcePointer<popOverLabel> popOverLabelLnf;
+  SharedResourcePointer<setlistButtonLookAndFeel> setlistButtonLnF;
+  SharedResourcePointer<setlistListButtonLookAndFeel> setlistListButtonLnF;
+  SharedResourcePointer<noSongLabelLookAndFeel> noSongLabelLnF;
+  SharedResourcePointer<noChordProLabelLookAndFeel> noChordProLabelLnF;
 
  private:
   void log(String text);
@@ -183,8 +326,13 @@ public:
   void chordProRefresh();
   void chordProReset();
   String static getWindowState();
+  String static getDefaults();
+  String static getChordProColors();
   void static setWindowState();
   Rectangle<int> static getWindowPositionAndSize();
+  void static setSongPanelPosition(bool display);
+  void updatePreferencesWindow();
+  void updatePreferencesColors();
 
   std::unique_ptr<MyDocumentWindow> extensionWindow;
   TooltipWindow tooltipWindow;
@@ -192,19 +340,27 @@ public:
   RightViewPort viewportRight;
   Component container;
   Component containerRight;
-  Component chordProContainer;
+  PreferencesContainer preferencesContainer;
+  ChordProContainer chordProContainer;
+  SetlistContainer setlistContainer;
+  std::unique_ptr<DrawableButton> prefToggle;
+
   PopOver fontButtonContainer;
   PopOver missingImageContainer;
   OwnedArray<TextButton> buttons;
   OwnedArray<TextButton> subButtons;
+  OwnedArray<TextButton> setlistButtons;
   OwnedArray<Label> chordProLines;
   OwnedArray<ImageComponent> chordProImages;
+  OwnedArray<DrawableButton> prefButtons;
+  OwnedArray<Label> prefColorLabels;
   StringPairArray buttonColors;
   StringPairArray chordProColors;
   ClockTimer clockTimer;
   RefreshTimer refreshTimer;
   CreateImageTimer imageTimer;
-  bool displayRightPanel = false;
+  bool displayRightPanel = true;
+  bool displaySongPanel = true;
   bool displayWindowOnLoad = false;
   bool chordProForCurrentSong = false;
   bool chordProImagesOnly = false;
@@ -220,6 +376,8 @@ public:
   std::unique_ptr<Label> clock;
   std::unique_ptr<Label> fontPopOverLabel;
   std::unique_ptr<Label> missingImageLabel;
+  std::unique_ptr<Label> noSongsLabel;
+  std::unique_ptr<Label> noChordProLabel;
   std::unique_ptr<TextButton> btnCurrent;
   std::unique_ptr<TextButton> btnPrev;
   std::unique_ptr<TextButton> btnNext;
@@ -227,8 +385,10 @@ public:
   std::unique_ptr<TextButton> fontUp;
   std::unique_ptr<TextButton> fontDown;
   std::unique_ptr<TextButton> fontMono;
+  std::unique_ptr<TextButton> setlistButton;
   std::unique_ptr<TextButton> createInvertedImage;
   std::unique_ptr<DynamicObject> preferences;
+  std::unique_ptr<DynamicObject> preferencesChordProColors;
   std::unique_ptr<ShapeButton> sidePanelOpenButton;
   std::unique_ptr<ShapeButton> sidePanelCloseButton;
   std::unique_ptr<ShapeButton> pinUnpinnedButton;
@@ -241,6 +401,9 @@ public:
   std::unique_ptr<ShapeButton> columnsOneButton;
   std::unique_ptr<ShapeButton> fitWidthButton;
   std::unique_ptr<ShapeButton> fitHeightButton;
+  std::unique_ptr<ShapeButton> closeButton;
+  Image menuIcon;
+  ImageComponent menuIconComponent;
 
 
 
